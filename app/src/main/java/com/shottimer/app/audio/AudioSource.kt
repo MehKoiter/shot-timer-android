@@ -40,7 +40,11 @@ class AudioSource {
         val bufferSize = if (minBufferSize > 0) minBufferSize else AUDIO_SAMPLE_RATE_HZ / 10
 
         val audioRecord = AudioRecord(
-            MediaRecorder.AudioSource.MIC,
+            // MIC applies AGC + noise suppression, which boosts quiet sounds toward full scale and
+            // flattens the gap between "quiet" and "loud" - useless for amplitude-threshold detection.
+            // VOICE_RECOGNITION is required by the Android CDD to disable that processing on any
+            // device with a microphone, giving honest relative amplitude readings instead.
+            MediaRecorder.AudioSource.VOICE_RECOGNITION,
             AUDIO_SAMPLE_RATE_HZ,
             AudioFormat.CHANNEL_IN_MONO,
             AudioFormat.ENCODING_PCM_16BIT,

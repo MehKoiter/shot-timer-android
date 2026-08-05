@@ -44,10 +44,13 @@ private const val BEEP_FADE_MS = 5
 
 const val DEFAULT_SENSITIVITY = 0.5f
 
-// Placeholder starting range - real values need tuning against an actual gun/range once M3 gets
-// tested live, per the plan. Higher sensitivity = lower amplitude threshold = quieter sounds trigger.
-private const val MIN_THRESHOLD_AMPLITUDE = 0.05f
-private const val MAX_THRESHOLD_AMPLITUDE = 0.6f
+// Calibrated against on-device peak-amplitude logging: finger snaps at arm's length peaked at
+// 0.94-1.00 (clipping), background/handling noise stayed at 0.03-0.56. Range sits between those
+// two clusters so the slider has real effect. Still a placeholder for actual gunfire, which will
+// be louder still - may need to shift this range up further once tested on the range.
+// Higher sensitivity = lower amplitude threshold = quieter sounds trigger.
+private const val MIN_THRESHOLD_AMPLITUDE = 0.3f
+private const val MAX_THRESHOLD_AMPLITUDE = 0.9f
 
 private fun thresholdFor(sensitivity: Float): Float =
     MAX_THRESHOLD_AMPLITUDE - sensitivity.coerceIn(0f, 1f) * (MAX_THRESHOLD_AMPLITUDE - MIN_THRESHOLD_AMPLITUDE)
