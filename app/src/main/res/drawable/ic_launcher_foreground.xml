@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- stopwatch button -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M48,24h12v8h-12z" />
+    <!-- stopwatch body -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M28,58 A26,26 0 1,1 80,58 A26,26 0 1,1 28,58 Z" />
+    <!-- watch face -->
+    <path
+        android:fillColor="@color/ic_launcher_background"
+        android:pathData="M32,58 A22,22 0 1,1 76,58 A22,22 0 1,1 32,58 Z" />
+    <!-- hand -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M54,58 L54,42" />
+</vector>
