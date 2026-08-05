@@ -1,20 +1,33 @@
 package com.shottimer.app.timer
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.shottimer.app.ui.theme.ShotTimerTheme
@@ -24,11 +37,28 @@ fun TimerScreen(
     modifier: Modifier = Modifier,
     viewModel: ShotTimerViewModel = viewModel()
 ) {
+    val context = LocalContext.current
+    var hasMicPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasMicPermission = granted
+        if (granted) viewModel.start()
+    }
+
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Column(
         modifier = modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -36,11 +66,43 @@ fun TimerScreen(
         Text(text = statusText(uiState.runState), style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(16.dp))
         Text(text = formatElapsed(uiState.elapsedMillis), style = MaterialTheme.typography.displayLarge)
-        Spacer(Modifier.height(48.dp))
-        when (uiState.runState) {
-            RunState.IDLE, RunState.STOPPED -> Button(onClick = viewModel::start) { Text("Start") }
-            RunState.ARMED_WAITING, RunState.RUNNING -> Button(onClick = viewModel::stop) { Text("Stop") }
+        Spacer(Modifier.height(24.dp))
+
+        Text(text = "Sensitivity: ${(uiState.sensitivity * 100).toInt()}%")
+        Slider(
+            value = uiState.sensitivity,
+            onValueChange = viewModel::setSensitivity,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.height(16.dp))
+
+        when {
+            !hasMicPermission -> Button(onClick = {
+                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }) { Text("Grant microphone permission to start") }
+            uiState.runState == RunState.IDLE || uiState.runState == RunState.STOPPED ->
+                Button(onClick = viewModel::start) { Text("Start") }
+            else -> Button(onClick = viewModel::stop) { Text("Stop") }
         }
+
+        Spacer(Modifier.height(32.dp))
+        ShotList(shotSplitsMillis = uiState.shotSplitsMillis)
+    }
+}
+
+@Composable
+private fun ShotList(shotSplitsMillis: List<Long>) {
+    Text(text = "Shots", style = MaterialTheme.typography.titleSmall)
+    Spacer(Modifier.height(8.dp))
+    if (shotSplitsMillis.isEmpty()) {
+        Text(text = "No shots detected yet")
+        return
+    }
+    var previousMillis = 0L
+    shotSplitsMillis.forEachIndexed { index, splitMillis ->
+        val delta = splitMillis - previousMillis
+        Text(text = "Shot ${index + 1}: ${formatElapsed(splitMillis)}  (+${formatElapsed(delta)})")
+        previousMillis = splitMillis
     }
 }
 

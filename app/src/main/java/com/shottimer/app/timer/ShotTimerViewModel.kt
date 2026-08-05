@@ -1,28 +1,36 @@
 package com.shottimer.app.timer
 
+import android.Manifest
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
 import android.os.SystemClock
+import androidx.annotation.RequiresPermission
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.shottimer.app.audio.AudioSource
+import com.shottimer.app.detection.ShotDetector
 import kotlin.math.PI
 import kotlin.math.min
 import kotlin.math.sin
+import kotlin.random.Random
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlin.random.Random
 
 enum class RunState { IDLE, ARMED_WAITING, RUNNING, STOPPED }
 
 data class TimerUiState(
     val runState: RunState = RunState.IDLE,
-    val elapsedMillis: Long = 0L
+    val elapsedMillis: Long = 0L,
+    val shotSplitsMillis: List<Long> = emptyList(),
+    val sensitivity: Float = DEFAULT_SENSITIVITY
 )
 
 private const val MIN_DELAY_MS = 1000L
@@ -34,6 +42,19 @@ private const val BEEP_DURATION_MS = 150
 private const val BEEP_FREQUENCY_HZ = 1800.0
 private const val BEEP_FADE_MS = 5
 
+const val DEFAULT_SENSITIVITY = 0.5f
+
+// Calibrated against on-device peak-amplitude logging: finger snaps at arm's length peaked at
+// 0.94-1.00 (clipping), background/handling noise stayed at 0.03-0.56. Range sits between those
+// two clusters so the slider has real effect. Still a placeholder for actual gunfire, which will
+// be louder still - may need to shift this range up further once tested on the range.
+// Higher sensitivity = lower amplitude threshold = quieter sounds trigger.
+private const val MIN_THRESHOLD_AMPLITUDE = 0.3f
+private const val MAX_THRESHOLD_AMPLITUDE = 0.9f
+
+private fun thresholdFor(sensitivity: Float): Float =
+    MAX_THRESHOLD_AMPLITUDE - sensitivity.coerceIn(0f, 1f) * (MAX_THRESHOLD_AMPLITUDE - MIN_THRESHOLD_AMPLITUDE)
+
 class ShotTimerViewModel : ViewModel() {
 
     // Synthesized in-code rather than a ToneGenerator system tone or a bundled asset: ToneGenerator's
@@ -41,24 +62,27 @@ class ShotTimerViewModel : ViewModel() {
     // exact frequency/duration/volume are ours to control without needing an audio asset in res/raw.
     private val beepSamples: ShortArray = buildBeepSamples()
 
+    private val audioSource = AudioSource()
+
     private val _uiState = MutableStateFlow(TimerUiState())
     val uiState: StateFlow<TimerUiState> = _uiState.asStateFlow()
 
     private var runJob: Job? = null
     private var startMarkNanos: Long = 0L
 
+    @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     fun start() {
         if (_uiState.value.runState == RunState.ARMED_WAITING || _uiState.value.runState == RunState.RUNNING) return
-        _uiState.value = TimerUiState(runState = RunState.ARMED_WAITING)
+        val detector = ShotDetector(thresholdAmplitude = thresholdFor(_uiState.value.sensitivity))
+        _uiState.value = TimerUiState(runState = RunState.ARMED_WAITING, sensitivity = _uiState.value.sensitivity)
         runJob = viewModelScope.launch {
             delay(Random.nextLong(MIN_DELAY_MS, MAX_DELAY_MS + 1))
             beep()
             startMarkNanos = SystemClock.elapsedRealtimeNanos()
             _uiState.value = _uiState.value.copy(runState = RunState.RUNNING)
-            while (isActive) {
-                val elapsedMs = (SystemClock.elapsedRealtimeNanos() - startMarkNanos) / 1_000_000
-                _uiState.value = _uiState.value.copy(elapsedMillis = elapsedMs)
-                delay(TICK_INTERVAL_MS)
+            coroutineScope {
+                launch { runClock() }
+                launch { detectShots(detector) }
             }
         }
     }
@@ -69,9 +93,34 @@ class ShotTimerViewModel : ViewModel() {
         runJob = null
         _uiState.value = when (runStateBeforeCancel) {
             // Cancelled during the random delay, before the beep ever fired - nothing to record.
-            RunState.ARMED_WAITING -> TimerUiState()
+            RunState.ARMED_WAITING -> TimerUiState(sensitivity = _uiState.value.sensitivity)
             RunState.RUNNING -> _uiState.value.copy(runState = RunState.STOPPED)
             else -> _uiState.value
+        }
+    }
+
+    fun setSensitivity(sensitivity: Float) {
+        _uiState.value = _uiState.value.copy(sensitivity = sensitivity.coerceIn(0f, 1f))
+    }
+
+    private suspend fun runClock() {
+        while (currentCoroutineContext().isActive) {
+            val elapsedMs = (SystemClock.elapsedRealtimeNanos() - startMarkNanos) / 1_000_000
+            _uiState.value = _uiState.value.copy(elapsedMillis = elapsedMs)
+            delay(TICK_INTERVAL_MS)
+        }
+    }
+
+    @RequiresPermission(Manifest.permission.RECORD_AUDIO)
+    private suspend fun detectShots(detector: ShotDetector) {
+        audioSource.chunks().collect { chunk ->
+            val events = detector.process(chunk)
+            if (events.isNotEmpty()) {
+                val newSplits = events.map { (it.timestampNanos - startMarkNanos) / 1_000_000 }
+                _uiState.value = _uiState.value.copy(
+                    shotSplitsMillis = _uiState.value.shotSplitsMillis + newSplits
+                )
+            }
         }
     }
 
