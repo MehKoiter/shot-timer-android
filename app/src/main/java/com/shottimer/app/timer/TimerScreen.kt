@@ -30,7 +30,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.shottimer.app.results.RunSummaryView
 import com.shottimer.app.ui.theme.ShotTimerTheme
+import com.shottimer.app.util.formatElapsed
 
 @Composable
 fun TimerScreen(
@@ -86,23 +88,11 @@ fun TimerScreen(
         }
 
         Spacer(Modifier.height(32.dp))
-        ShotList(shotSplitsMillis = uiState.shotSplitsMillis)
-    }
-}
-
-@Composable
-private fun ShotList(shotSplitsMillis: List<Long>) {
-    Text(text = "Shots", style = MaterialTheme.typography.titleSmall)
-    Spacer(Modifier.height(8.dp))
-    if (shotSplitsMillis.isEmpty()) {
-        Text(text = "No shots detected yet")
-        return
-    }
-    var previousMillis = 0L
-    shotSplitsMillis.forEachIndexed { index, splitMillis ->
-        val delta = splitMillis - previousMillis
-        Text(text = "Shot ${index + 1}: ${formatElapsed(splitMillis)}  (+${formatElapsed(delta)})")
-        previousMillis = splitMillis
+        RunSummaryView(
+            totalElapsedMillis = uiState.elapsedMillis,
+            shotTimestampsMillis = uiState.shotSplitsMillis,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
@@ -111,14 +101,6 @@ private fun statusText(state: RunState): String = when (state) {
     RunState.ARMED_WAITING -> "Stand by…"
     RunState.RUNNING -> "GO"
     RunState.STOPPED -> "Stopped"
-}
-
-private fun formatElapsed(elapsedMillis: Long): String {
-    val totalCentis = elapsedMillis / 10
-    val minutes = totalCentis / 6000
-    val seconds = (totalCentis / 100) % 60
-    val centis = totalCentis % 100
-    return "%02d:%02d.%02d".format(minutes, seconds, centis)
 }
 
 @Preview(showBackground = true)
