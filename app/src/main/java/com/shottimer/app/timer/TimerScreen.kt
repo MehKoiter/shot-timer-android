@@ -13,9 +13,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -76,6 +78,24 @@ fun TimerScreen(
             onValueChange = viewModel::setSensitivity,
             modifier = Modifier.fillMaxWidth()
         )
+        Spacer(Modifier.height(16.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(text = "Par time")
+            Switch(checked = uiState.parTimeEnabled, onCheckedChange = viewModel::setParTimeEnabled)
+        }
+        if (uiState.parTimeEnabled) {
+            Text(text = "Par: %.1fs".format(uiState.parTimeSeconds))
+            Slider(
+                value = uiState.parTimeSeconds,
+                onValueChange = viewModel::setParTimeSeconds,
+                valueRange = MIN_PAR_TIME_SECONDS..MAX_PAR_TIME_SECONDS,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
         Spacer(Modifier.height(16.dp))
 
         when {
