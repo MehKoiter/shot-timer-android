@@ -17,8 +17,12 @@ private const val KEY_BEEP_VOLUME = "beep_volume"
  * DataStore's async/proto machinery, and this avoids pinning yet another library version.
  * [settings] is a write-through cache - update() writes to disk and the in-memory StateFlow
  * together, so readers never need to suspend to see a freshly-written value.
+ *
+ * Must be a singleton (via [getInstance]): ShotTimerViewModel and SettingsViewModel both need to
+ * observe the same in-memory cache, otherwise a change written through one instance is invisible
+ * to whichever other instance was constructed first and is still holding its own stale copy.
  */
-class SettingsRepository(context: Context) {
+class SettingsRepository private constructor(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     private val _settings = MutableStateFlow(loadSettings())
@@ -45,5 +49,15 @@ class SettingsRepository(context: Context) {
             .putFloat(KEY_MAX_DELAY, updated.maxDelaySeconds)
             .putFloat(KEY_BEEP_VOLUME, updated.beepVolume)
             .apply()
+    }
+
+    companion object {
+        @Volatile
+        private var instance: SettingsRepository? = null
+
+        fun getInstance(context: Context): SettingsRepository =
+            instance ?: synchronized(this) {
+                instance ?: SettingsRepository(context.applicationContext).also { instance = it }
+            }
     }
 }

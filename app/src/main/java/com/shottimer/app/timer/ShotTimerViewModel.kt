@@ -76,7 +76,7 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val audioSource = AudioSource()
     private val runRepository = RunRepository(application)
-    private val settingsRepository = SettingsRepository(application)
+    private val settingsRepository = SettingsRepository.getInstance(application)
 
     private val _uiState = MutableStateFlow(
         TimerUiState(sensitivity = settingsRepository.settings.value.defaultSensitivity)
