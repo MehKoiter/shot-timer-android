@@ -25,7 +25,8 @@ import com.shottimer.app.util.formatElapsed
 fun RunSummaryView(
     totalElapsedMillis: Long,
     shotTimestampsMillis: List<Long>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    expectedRoundCount: Int? = null
 ) {
     val metrics = computeRunMetrics(totalElapsedMillis, shotTimestampsMillis)
 
@@ -40,7 +41,9 @@ fun RunSummaryView(
             HorizontalDivider()
             Spacer(Modifier.height(12.dp))
 
-            Text(text = "Shots (${metrics.splits.size})", style = MaterialTheme.typography.titleSmall)
+            val shotsTitle = "Shots (${metrics.splits.size}" +
+                (expectedRoundCount?.let { "/$it" } ?: "") + ")"
+            Text(text = shotsTitle, style = MaterialTheme.typography.titleSmall)
             Spacer(Modifier.height(4.dp))
             if (metrics.splits.isEmpty()) {
                 Text(text = "No shots detected yet", style = MaterialTheme.typography.bodyMedium)
