@@ -1,25 +1,33 @@
 package com.shottimer.app.settings
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RangeSlider
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
@@ -47,30 +55,35 @@ fun SettingsScreen(
             )
         }
 
-        SettingSection(title = "Echo lockout: ${settings.echoLockoutMs}ms") {
+        SettingSection(title = "Echo lockout") {
             Text(
-                text = "How long after a detected shot to ignore further sound - filters out echoes/reverb without missing a genuinely fast next shot.",
+                text = "How long after a detected shot to ignore further sound - filters out echoes/reverb without missing a genuinely fast next shot. $MIN_ECHO_LOCKOUT_MS-$MAX_ECHO_LOCKOUT_MS ms.",
                 style = MaterialTheme.typography.bodySmall
             )
-            Slider(
-                value = settings.echoLockoutMs.toFloat(),
-                onValueChange = { viewModel.setEchoLockoutMs(it.toLong()) },
-                valueRange = MIN_ECHO_LOCKOUT_MS.toFloat()..MAX_ECHO_LOCKOUT_MS.toFloat(),
-                modifier = Modifier.fillMaxWidth()
+            IntegerField(
+                label = "Lockout (ms)",
+                value = settings.echoLockoutMs,
+                onValueChange = viewModel::setEchoLockoutMs
             )
         }
 
-        SettingSection(
-            title = "Random delay: %.1fs - %.1fs".format(settings.minDelaySeconds, settings.maxDelaySeconds)
-        ) {
+        SettingSection(title = "Random delay") {
             Text(
-                text = "Range for the random pause between pressing Start and the beep.",
+                text = "Range for the random pause between pressing Start and the beep. " +
+                    "$MIN_RANDOM_DELAY_SECONDS-$MAX_RANDOM_DELAY_SECONDS seconds.",
                 style = MaterialTheme.typography.bodySmall
             )
-            RangeSlider(
-                value = settings.minDelaySeconds..settings.maxDelaySeconds,
-                onValueChange = { range -> viewModel.setDelayRange(range.start, range.endInclusive) },
-                valueRange = MIN_RANDOM_DELAY_SECONDS..MAX_RANDOM_DELAY_SECONDS,
+            FloatField(
+                label = "Min (s)",
+                value = settings.minDelaySeconds,
+                onValueChange = { viewModel.setDelayRange(it, settings.maxDelaySeconds) },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(8.dp))
+            FloatField(
+                label = "Max (s)",
+                value = settings.maxDelaySeconds,
+                onValueChange = { viewModel.setDelayRange(settings.minDelaySeconds, it) },
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -87,6 +100,49 @@ fun SettingsScreen(
             )
         }
     }
+}
+
+/** Local text mirrors [value] until the field loses focus, so clamping doesn't fight the user mid-keystroke. */
+@Composable
+private fun IntegerField(
+    label: String,
+    value: Long,
+    onValueChange: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var text by remember(value) { mutableStateOf(value.toString()) }
+    OutlinedTextField(
+        value = text,
+        onValueChange = { text = it },
+        label = { Text(label) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { text.toLongOrNull()?.let(onValueChange) }),
+        modifier = modifier.onFocusChanged { focus ->
+            if (!focus.isFocused) text.toLongOrNull()?.let(onValueChange)
+        }
+    )
+}
+
+@Composable
+private fun FloatField(
+    label: String,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var text by remember(value) { mutableStateOf("%.1f".format(value)) }
+    OutlinedTextField(
+        value = text,
+        onValueChange = { text = it },
+        label = { Text(label) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { text.toFloatOrNull()?.let(onValueChange) }),
+        modifier = modifier.onFocusChanged { focus ->
+            if (!focus.isFocused) text.toFloatOrNull()?.let(onValueChange)
+        }
+    )
 }
 
 @Composable
