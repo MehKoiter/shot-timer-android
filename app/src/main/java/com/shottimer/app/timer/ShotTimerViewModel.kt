@@ -13,10 +13,12 @@ import com.shottimer.app.audio.AudioSource
 import com.shottimer.app.data.RunEntity
 import com.shottimer.app.data.RunRepository
 import com.shottimer.app.detection.ShotDetector
+import com.shottimer.app.settings.SettingsRepository
 import kotlin.math.PI
 import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
@@ -35,11 +37,10 @@ data class TimerUiState(
     val shotSplitsMillis: List<Long> = emptyList(),
     val sensitivity: Float = DEFAULT_SENSITIVITY,
     val parTimeEnabled: Boolean = false,
-    val parTimeSeconds: Float = DEFAULT_PAR_TIME_SECONDS
+    val parTimeSeconds: Float = DEFAULT_PAR_TIME_SECONDS,
+    val micErrorMessage: String? = null
 )
 
-private const val MIN_DELAY_MS = 1000L
-private const val MAX_DELAY_MS = 3500L
 private const val TICK_INTERVAL_MS = 10L
 
 private const val BEEP_SAMPLE_RATE_HZ = 44100
@@ -74,9 +75,12 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
     private val parBeepSamples: ShortArray = buildBeepSamples(PAR_BEEP_FREQUENCY_HZ)
 
     private val audioSource = AudioSource()
-    private val repository = RunRepository(application)
+    private val runRepository = RunRepository(application)
+    private val settingsRepository = SettingsRepository(application)
 
-    private val _uiState = MutableStateFlow(TimerUiState())
+    private val _uiState = MutableStateFlow(
+        TimerUiState(sensitivity = settingsRepository.settings.value.defaultSensitivity)
+    )
     val uiState: StateFlow<TimerUiState> = _uiState.asStateFlow()
 
     private var runJob: Job? = null
@@ -86,16 +90,22 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     fun start() {
         if (_uiState.value.runState == RunState.ARMED_WAITING || _uiState.value.runState == RunState.RUNNING) return
-        val detector = ShotDetector(thresholdAmplitude = thresholdFor(_uiState.value.sensitivity))
-        _uiState.value = freshIdleState().copy(runState = RunState.ARMED_WAITING)
+        val settings = settingsRepository.settings.value
+        val detector = ShotDetector(
+            thresholdAmplitude = thresholdFor(_uiState.value.sensitivity),
+            lockoutNanos = settings.echoLockoutMs * 1_000_000L
+        )
+        _uiState.value = freshIdleState().copy(runState = RunState.ARMED_WAITING, micErrorMessage = null)
         runJob = viewModelScope.launch {
-            delay(Random.nextLong(MIN_DELAY_MS, MAX_DELAY_MS + 1))
-            playTone(startBeepSamples)
+            val minDelayMs = (settings.minDelaySeconds * 1000).toLong()
+            val maxDelayMs = (settings.maxDelaySeconds * 1000).toLong()
+            delay(Random.nextLong(minDelayMs, maxDelayMs + 1))
+            playTone(startBeepSamples, settings.beepVolume)
             startMarkNanos = SystemClock.elapsedRealtimeNanos()
             _uiState.value = _uiState.value.copy(runState = RunState.RUNNING)
 
             if (_uiState.value.parTimeEnabled) {
-                schedulePar(_uiState.value.parTimeSeconds)
+                schedulePar(_uiState.value.parTimeSeconds, settings.beepVolume)
             }
 
             coroutineScope {
@@ -121,7 +131,7 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
 
     private fun saveRun(finishedState: TimerUiState) {
         viewModelScope.launch {
-            repository.saveRun(
+            runRepository.saveRun(
                 RunEntity(
                     timestampEpochMillis = System.currentTimeMillis(),
                     totalElapsedMillis = finishedState.elapsedMillis,
@@ -156,10 +166,10 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
         )
     }
 
-    private fun schedulePar(parTimeSeconds: Float) {
+    private fun schedulePar(parTimeSeconds: Float, beepVolume: Float) {
         parJob = viewModelScope.launch {
             delay((parTimeSeconds * 1000).toLong())
-            playTone(parBeepSamples)
+            playTone(parBeepSamples, beepVolume)
             stop()
         }
     }
@@ -174,18 +184,28 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
 
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     private suspend fun detectShots(detector: ShotDetector) {
-        audioSource.chunks().collect { chunk ->
-            val events = detector.process(chunk)
-            if (events.isNotEmpty()) {
-                val newSplits = events.map { (it.timestampNanos - startMarkNanos) / 1_000_000 }
-                _uiState.value = _uiState.value.copy(
-                    shotSplitsMillis = _uiState.value.shotSplitsMillis + newSplits
-                )
+        try {
+            audioSource.chunks().collect { chunk ->
+                val events = detector.process(chunk)
+                if (events.isNotEmpty()) {
+                    val newSplits = events.map { (it.timestampNanos - startMarkNanos) / 1_000_000 }
+                    _uiState.value = _uiState.value.copy(
+                        shotSplitsMillis = _uiState.value.shotSplitsMillis + newSplits
+                    )
+                }
             }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // AudioRecord failed to initialize (mic busy/unavailable) - surface it instead of the
+            // whole app crashing from an uncaught exception in this coroutine.
+            _uiState.value = _uiState.value.copy(
+                micErrorMessage = "Microphone unavailable - shot detection stopped for this run"
+            )
         }
     }
 
-    private fun playTone(samples: ShortArray) {
+    private fun playTone(samples: ShortArray, volume: Float) {
         val track = AudioTrack.Builder()
             .setAudioAttributes(
                 AudioAttributes.Builder()
@@ -204,6 +224,7 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
             .setTransferMode(AudioTrack.MODE_STATIC)
             .build()
         track.write(samples, 0, samples.size)
+        track.setVolume(volume.coerceIn(0f, 1f))
         track.play()
         // Fire-and-forget: release once playback has had time to finish, without blocking run state
         // transitions (the clock should start the instant play() is triggered, not after the beep ends).

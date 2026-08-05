@@ -1,9 +1,7 @@
 package com.shottimer.app.history
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -74,21 +73,19 @@ private fun RunList(runs: List<RunEntity>, onSelect: (RunEntity) -> Unit, modifi
 
 @Composable
 private fun RunRow(run: RunEntity, onClick: () -> Unit) {
-    Row(
+    val detail = "${run.shotTimestampsMillis.size} shots" +
+        (run.parTimeSeconds?.let { "  ·  Par %.1fs".format(it) } ?: "")
+
+    ListItem(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Column {
-            Text(text = formatTimestamp(run.timestampEpochMillis))
-            val detail = "${run.shotTimestampsMillis.size} shots" +
-                (run.parTimeSeconds?.let { "  ·  Par %.1fs".format(it) } ?: "")
-            Text(text = detail, style = MaterialTheme.typography.bodySmall)
+            .clickable(onClick = onClick),
+        headlineContent = { Text(text = formatTimestamp(run.timestampEpochMillis)) },
+        supportingContent = { Text(text = detail) },
+        trailingContent = {
+            Text(text = formatElapsed(run.totalElapsedMillis), style = MaterialTheme.typography.titleMedium)
         }
-        Text(text = formatElapsed(run.totalElapsedMillis), style = MaterialTheme.typography.titleMedium)
-    }
+    )
 }
 
 @Composable

@@ -4,6 +4,7 @@ import android.Manifest
 import androidx.annotation.RequiresPermission
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,15 +21,27 @@ class MicTestViewModel : ViewModel() {
     private val _isListening = MutableStateFlow(false)
     val isListening: StateFlow<Boolean> = _isListening.asStateFlow()
 
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
     private var captureJob: Job? = null
 
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     fun startListening() {
         if (captureJob?.isActive == true) return
         _isListening.value = true
+        _errorMessage.value = null
         captureJob = viewModelScope.launch {
-            audioSource.chunks().collect { chunk ->
-                _level.value = normalizedLevel(chunk.samples)
+            try {
+                audioSource.chunks().collect { chunk ->
+                    _level.value = normalizedLevel(chunk.samples)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _errorMessage.value = "Microphone unavailable - is another app using it?"
+                _isListening.value = false
+                _level.value = 0f
             }
         }
     }
