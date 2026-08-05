@@ -28,7 +28,7 @@ class MicTestViewModel : ViewModel() {
         _isListening.value = true
         captureJob = viewModelScope.launch {
             audioSource.chunks().collect { chunk ->
-                _level.value = normalizedLevel(chunk)
+                _level.value = normalizedLevel(chunk.samples)
             }
         }
     }
