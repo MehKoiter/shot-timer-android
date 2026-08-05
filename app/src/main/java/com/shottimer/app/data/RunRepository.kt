@@ -8,5 +8,7 @@ class RunRepository(context: Context) {
 
     suspend fun saveRun(run: RunEntity): Long = dao.insert(run)
 
+    suspend fun deleteRun(run: RunEntity) = dao.delete(run)
+
     fun observeRuns(): Flow<List<RunEntity>> = dao.observeAll()
 }

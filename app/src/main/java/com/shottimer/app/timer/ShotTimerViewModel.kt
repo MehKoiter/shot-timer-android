@@ -13,6 +13,7 @@ import com.shottimer.app.audio.AudioSource
 import com.shottimer.app.data.RunEntity
 import com.shottimer.app.data.RunRepository
 import com.shottimer.app.detection.ShotDetector
+import com.shottimer.app.drills.Drill
 import com.shottimer.app.settings.SettingsRepository
 import kotlin.math.PI
 import kotlin.math.min
@@ -38,7 +39,8 @@ data class TimerUiState(
     val sensitivity: Float = DEFAULT_SENSITIVITY,
     val parTimeEnabled: Boolean = false,
     val parTimeSeconds: Float = DEFAULT_PAR_TIME_SECONDS,
-    val micErrorMessage: String? = null
+    val micErrorMessage: String? = null,
+    val selectedDrill: Drill? = null
 )
 
 private const val TICK_INTERVAL_MS = 10L
@@ -136,10 +138,15 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
                     timestampEpochMillis = System.currentTimeMillis(),
                     totalElapsedMillis = finishedState.elapsedMillis,
                     shotTimestampsMillis = finishedState.shotSplitsMillis,
-                    parTimeSeconds = if (finishedState.parTimeEnabled) finishedState.parTimeSeconds else null
+                    parTimeSeconds = if (finishedState.parTimeEnabled) finishedState.parTimeSeconds else null,
+                    drillName = finishedState.selectedDrill?.name
                 )
             )
         }
+    }
+
+    fun selectDrill(drill: Drill?) {
+        _uiState.value = _uiState.value.copy(selectedDrill = drill)
     }
 
     fun setSensitivity(sensitivity: Float) {
@@ -162,7 +169,8 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
         return TimerUiState(
             sensitivity = current.sensitivity,
             parTimeEnabled = current.parTimeEnabled,
-            parTimeSeconds = current.parTimeSeconds
+            parTimeSeconds = current.parTimeSeconds,
+            selectedDrill = current.selectedDrill
         )
     }
 
