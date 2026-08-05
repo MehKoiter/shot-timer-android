@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -17,7 +19,7 @@ import com.shottimer.app.util.formatElapsed
 
 /**
  * Reusable "here's what happened in this run" view: usable both for a run still in progress
- * (partial results, keeps updating) and a finished/saved run (from history, in a later milestone).
+ * (partial results, keeps updating) and a finished/saved run from history.
  */
 @Composable
 fun RunSummaryView(
@@ -27,28 +29,44 @@ fun RunSummaryView(
 ) {
     val metrics = computeRunMetrics(totalElapsedMillis, shotTimestampsMillis)
 
-    Column(modifier = modifier) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            SummaryStat(label = "First Shot", value = metrics.firstShotMillis?.let(::formatElapsed) ?: "--")
-            SummaryStat(label = "Total Time", value = formatElapsed(metrics.totalElapsedMillis))
-        }
+    Card(modifier = modifier) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                SummaryStat(label = "First Shot", value = metrics.firstShotMillis?.let(::formatElapsed) ?: "--")
+                SummaryStat(label = "Total Time", value = formatElapsed(metrics.totalElapsedMillis))
+            }
 
-        Spacer(Modifier.height(24.dp))
-        HorizontalDivider()
-        Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(20.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(12.dp))
 
-        Text(text = "Shots (${metrics.splits.size})", style = MaterialTheme.typography.titleSmall)
-        Spacer(Modifier.height(8.dp))
-        if (metrics.splits.isEmpty()) {
-            Text(text = "No shots detected yet")
-        } else {
-            metrics.splits.forEach { split ->
-                Text(
-                    text = "Shot ${split.shotNumber}: ${formatElapsed(split.elapsedMillis)}" +
-                        "  (+${formatElapsed(split.splitMillis)})"
-                )
+            Text(text = "Shots (${metrics.splits.size})", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(4.dp))
+            if (metrics.splits.isEmpty()) {
+                Text(text = "No shots detected yet", style = MaterialTheme.typography.bodyMedium)
+            } else {
+                metrics.splits.forEach { split ->
+                    ShotRow(split)
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun ShotRow(split: ShotSplit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(text = "Shot ${split.shotNumber}")
+        Text(text = formatElapsed(split.elapsedMillis))
+        Text(
+            text = "+${formatElapsed(split.splitMillis)}",
+            style = MaterialTheme.typography.bodyMedium
+        )
     }
 }
 
