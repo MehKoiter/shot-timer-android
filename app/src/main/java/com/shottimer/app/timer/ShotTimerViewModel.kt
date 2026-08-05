@@ -1,14 +1,17 @@
 package com.shottimer.app.timer
 
 import android.Manifest
+import android.app.Application
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
 import android.os.SystemClock
 import androidx.annotation.RequiresPermission
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.shottimer.app.audio.AudioSource
+import com.shottimer.app.data.RunEntity
+import com.shottimer.app.data.RunRepository
 import com.shottimer.app.detection.ShotDetector
 import kotlin.math.PI
 import kotlin.math.min
@@ -62,7 +65,7 @@ private const val MAX_THRESHOLD_AMPLITUDE = 0.9f
 private fun thresholdFor(sensitivity: Float): Float =
     MAX_THRESHOLD_AMPLITUDE - sensitivity.coerceIn(0f, 1f) * (MAX_THRESHOLD_AMPLITUDE - MIN_THRESHOLD_AMPLITUDE)
 
-class ShotTimerViewModel : ViewModel() {
+class ShotTimerViewModel(application: Application) : AndroidViewModel(application) {
 
     // Synthesized in-code rather than a ToneGenerator system tone or a bundled asset: ToneGenerator's
     // legacy CDMA tones are silent on some GSM-only devices (no tone table shipped), and this way the
@@ -71,6 +74,7 @@ class ShotTimerViewModel : ViewModel() {
     private val parBeepSamples: ShortArray = buildBeepSamples(PAR_BEEP_FREQUENCY_HZ)
 
     private val audioSource = AudioSource()
+    private val repository = RunRepository(application)
 
     private val _uiState = MutableStateFlow(TimerUiState())
     val uiState: StateFlow<TimerUiState> = _uiState.asStateFlow()
@@ -110,8 +114,21 @@ class ShotTimerViewModel : ViewModel() {
         _uiState.value = when (runStateBeforeCancel) {
             // Cancelled during the random delay, before the beep ever fired - nothing to record.
             RunState.ARMED_WAITING -> freshIdleState()
-            RunState.RUNNING -> _uiState.value.copy(runState = RunState.STOPPED)
+            RunState.RUNNING -> _uiState.value.copy(runState = RunState.STOPPED).also(::saveRun)
             else -> _uiState.value
+        }
+    }
+
+    private fun saveRun(finishedState: TimerUiState) {
+        viewModelScope.launch {
+            repository.saveRun(
+                RunEntity(
+                    timestampEpochMillis = System.currentTimeMillis(),
+                    totalElapsedMillis = finishedState.elapsedMillis,
+                    shotTimestampsMillis = finishedState.shotSplitsMillis,
+                    parTimeSeconds = if (finishedState.parTimeEnabled) finishedState.parTimeSeconds else null
+                )
+            )
         }
     }
 
