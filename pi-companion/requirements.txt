@@ -1,0 +1,13 @@
+# Runtime dependencies for the Pi itself (main.py and everything it imports).
+#
+# Unpinned: exact known-good versions haven't been established against Raspberry Pi OS Lite
+# (64-bit) Bookworm's system Python on real hardware yet - see README.md's test-coverage
+# section. Pin these once this has actually been run on a Pi.
+#
+# Running the pure-logic test suite (tests/) does NOT require this whole list - see
+# README.md's "Running the tests" section for the much shorter list that actually needs.
+
+numpy
+sounddevice
+bluezero
+gpiozero
