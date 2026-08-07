@@ -26,11 +26,11 @@ actually been run on a real Pi.
 | `shot_timer_pi/beep_detector.py` | **Unit tested** (`tests/test_beep_detector.py`) | Pure numpy/FFT logic, no I/O |
 | `shot_timer_pi/storage.py` | **Unit tested** (`tests/test_storage.py`) | Pure stdlib `sqlite3`, real temp-file DB round-trips |
 | `shot_timer_pi/beep.py` | **Partially tested** | `build_beep_samples()` (synthesis) is pure and is exercised indirectly by `test_beep_detector.py`; `play_tone()` (playback) needs a real audio output device and is untested |
-| `shot_timer_pi/audio_source.py` | **Untested** | Needs a real ALSA capture device (the I2S mic) |
-| `shot_timer_pi/ble_service.py` | **Untested** | Needs a real BlueZ-managed Bluetooth adapter |
-| `shot_timer_pi/button.py` | **Untested** | Needs real GPIO hardware |
-| `shot_timer_pi/run_controller.py` | **Untested** | Orchestrates the above - calls real playback and real mic capture directly |
-| `shot_timer_pi/main.py` | **Untested** | Wires everything together; is the real entry point |
+| `shot_timer_pi/audio_source.py` | **Untested** | Needs a real ALSA capture device (the I2S mic - not wired up yet as of 2026-08-07) |
+| `shot_timer_pi/ble_service.py` | **Partially verified on real hardware, not working end to end** | See "Known issues" below - GATT application registration succeeds, but BLE advertising fails at the controller level on the Pi 3B's onboard chip |
+| `shot_timer_pi/button.py` | **Verified on real hardware** | Constructs and arms cleanly on a Pi 3B once `lgpio` is installed (see "System packages" below); not press-tested since no button is wired up yet |
+| `shot_timer_pi/run_controller.py` | **Partially verified** | Constructs and runs cleanly up through the point `ble_service.py`'s advertising failure interrupts it; full delay->beep->detect sequence not yet exercised (no mic/buzzer wired up) |
+| `shot_timer_pi/main.py` | **Runs, doesn't complete successfully yet** | Blocked on the same BLE advertising issue as `ble_service.py` |
 
 `tests/` only ever imports the three pure modules - `shot_timer_pi/__init__.py` is
 deliberately empty (no submodule imports) so that importing any one of them can never
@@ -161,7 +161,38 @@ datasheet - confirm current draw against the specific module once it's in hand, 
 `docs/PI_COMPANION.md`'s own note that this circuit still needs finalizing against real
 hardware.
 
-### 4. Install Python dependencies
+### 4. System packages
+
+**Verified against a real Pi 3B on 2026-08-07** - `pip install -r requirements.txt` will fail
+partway through without these. `bluezero` and `lgpio` both compile native extensions at
+install time rather than shipping prebuilt ARM wheels for everything they need:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y \
+  libgirepository1.0-dev gobject-introspection gobject-introspection-bin libglib2.0-dev \
+  pkg-config libdbus-1-dev libdbus-glib-1-dev \
+  libportaudio2 \
+  swig liblgpio-dev \
+  rfkill
+```
+
+What each is for, since "install this pile of packages" isn't self-explanatory:
+- `libgirepository1.0-dev`, `gobject-introspection*`, `libglib2.0-dev`, `pkg-config`,
+  `libdbus-1-dev`, `libdbus-glib-1-dev` - needed to build `PyGObject` and `dbus-python`
+  from source, both of which `bluezero` depends on (`dbus-python` specifically: bluezero
+  imports the `dbus` module directly but doesn't declare it as a pip dependency, so
+  `pip install bluezero` alone will leave it missing - see `requirements.txt`).
+- `libportaudio2` - the native library `sounddevice` wraps via ctypes; without it, importing
+  `sounddevice` fails immediately with `OSError: PortAudio library not found`.
+- `swig`, `liblgpio-dev` - needed to build the `lgpio` Python package from source. Without
+  `lgpio` installed, `gpiozero` falls back to a legacy sysfs-based software pin implementation
+  that does not work on this kernel's GPIO character-device interface - `button.py` fails with
+  `OSError: [Errno 22] Invalid argument` trying to export a pin.
+- `rfkill` - not a build dependency, but see "Known issues" below: the Bluetooth adapter can
+  come up soft-blocked, and `rfkill` is the tool to check/clear that.
+
+### 5. Install Python dependencies
 
 ```bash
 cd pi-companion
@@ -170,16 +201,12 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-`bluezero` also needs BlueZ itself present (it ships with Raspberry Pi OS) and the Pi's user
-in a position to talk to it over D-Bus - if you hit permission errors registering the GATT
-application, the common fixes are running as root or adding the user to the `bluetooth`
-group; consult bluezero's own troubleshooting docs, since this wasn't verified against a real
-BlueZ stack here. GPIO access needs the user in the `gpio` group and audio access needs the
-`audio` group - both are typically already set up for the user account created via Raspberry
-Pi Imager, but if not: `sudo usermod -aG gpio,audio,bluetooth <username>` (log out/reboot for
-group changes to take effect).
+GPIO access needs the user in the `gpio` group and audio access needs the `audio` group -
+both are typically already set up for the user account created via Raspberry Pi Imager, but
+if not: `sudo usermod -aG gpio,audio,bluetooth <username>` (log out/reboot for group changes
+to take effect).
 
-### 5. Running the tests
+### 6. Running the tests
 
 The pure-logic test suite (`shot_detector.py`, `beep_detector.py`, `beep.py`'s synthesis,
 `storage.py`) doesn't need the Pi at all - it runs on any machine with Python 3 and two
@@ -197,7 +224,7 @@ All 28 tests should pass. This does **not** require `sounddevice`, `bluezero`, o
 to be installed - see "What's tested and what isn't" above for why that's a deliberate
 property of the package layout, not an accident.
 
-### 6. Running it manually
+### 7. Running it manually
 
 From the `pi-companion/` directory, with dependencies installed and hardware wired up:
 
@@ -210,7 +237,7 @@ stdout. Press the button, or connect from a BLE central (e.g. a phone with a gen
 scanner app like nRF Connect) and write the string `ARM` to the Command characteristic, to
 trigger a run. Ctrl-C to stop.
 
-### 7. Installing the systemd service
+### 8. Installing the systemd service
 
 ```bash
 sudo cp systemd/shot-timer-pi.service /etc/systemd/system/
@@ -222,6 +249,46 @@ Edit `systemd/shot-timer-pi.service`'s `User=`, `Group=`, and `WorkingDirectory=
 your username or repo location differs from the placeholders in that file (see comments
 inside it). Check status/logs with `systemctl status shot-timer-pi` and
 `journalctl -u shot-timer-pi -f`.
+
+## Known issues
+
+**BLE advertising fails on the Pi 3B's onboard Bluetooth chip (open as of 2026-08-07).**
+Running `main.py` (or constructing `ShotTimerBleService` and calling `publish()` directly) gets
+through GATT application registration successfully (`bluezero.GATT: GATT application
+registered` in the log) but then fails with:
+
+```
+Failed to register advertisement: org.bluez.Error.Failed: Failed to register advertisement
+```
+
+`journalctl -u bluetooth` shows the real underlying reason, which the D-Bus error above
+doesn't surface: `src/advertising.c:add_client_complete() Failed to add advertisement: Invalid
+Parameters (0x0d)` - an HCI-level error from the controller itself, not a BlueZ/D-Bus
+configuration problem. What's been ruled out:
+
+- **Not a powered-off/blocked adapter** - this Pi's adapter came up `rfkill soft-blocked` by
+  default (`sudo rfkill unblock bluetooth && bluetoothctl power on` fixes that specific state,
+  and is worth checking first on any fresh setup), but the advertising failure persists even
+  with the adapter confirmed `Powered: yes`.
+- **Not stale D-Bus state** - persists across a full `sudo systemctl restart bluetooth`.
+- **Not the advertisement payload exceeding the legacy 31-byte limit** - the working theory
+  going in (a 128-bit custom service UUID plus the "Shot Timer Pi" local name looked close to
+  overflowing it), but forcing `service_UUIDs` to empty before calling `publish()` (via
+  `svc._peripheral.primary_services = []`, since `primary_services` only ever feeds the
+  advertisement, not actual GATT registration - see `bluezero/peripheral.py`) made no
+  difference.
+- **Not an uninitialized/firmware-less adapter** - `dmesg` shows the Broadcom BCM43430A1
+  firmware patch (`brcm/BCM43430A1.raspberrypi,3-model-b.hcd`) loading successfully at boot,
+  and the chip identifies itself correctly (`hci0: BCM43438A1 37.4MHz Raspberry Pi 3-0141`).
+
+What's left unconfirmed: this looks like a chip/firmware-level quirk specific to the Pi 3B's
+older BCM43430A1 controller's LE advertising support, which has documented rough edges in the
+wider Raspberry Pi/BlueZ community. Worth trying next: adjusting the advertisement's `Type`
+(bluezero defaults to `'peripheral'`) or other `LEAdvertisingManager1` parameters BlueZ sends
+for this specific chip, checking whether `bluetoothd`'s experimental-features flag changes
+anything, or - if this proves to be a genuine hardware limitation - falling back to a USB BLE
+dongle rather than the Pi 3B's onboard radio. Not yet tried: none of the above, in the
+interest of not burning arbitrary time speculatively before there's a specific next lead.
 
 ## BLE GATT protocol reference
 
