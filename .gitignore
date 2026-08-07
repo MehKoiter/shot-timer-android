@@ -16,3 +16,6 @@ build/
 # Keystores
 *.jks
 *.keystore
+
+# Claude Code - personal/local settings, not shared with collaborators
+.claude/settings.local.json
