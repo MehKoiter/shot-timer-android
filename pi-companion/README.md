@@ -27,10 +27,10 @@ actually been run on a real Pi.
 | `shot_timer_pi/storage.py` | **Unit tested** (`tests/test_storage.py`) | Pure stdlib `sqlite3`, real temp-file DB round-trips |
 | `shot_timer_pi/beep.py` | **Partially tested** | `build_beep_samples()` (synthesis) is pure and is exercised indirectly by `test_beep_detector.py`; `play_tone()` (playback) needs a real audio output device and is untested |
 | `shot_timer_pi/audio_source.py` | **Untested** | Needs a real ALSA capture device (the I2S mic - not wired up yet as of 2026-08-07) |
-| `shot_timer_pi/ble_service.py` | **Partially verified on real hardware, not working end to end** | See "Known issues" below - GATT application registration succeeds, but BLE advertising fails at the controller level on the Pi 3B's onboard chip |
+| `shot_timer_pi/ble_service.py` | **Verified on real hardware - GATT registration and advertising both confirmed working** | See "Known issues" below - advertising needed a workaround (`ble_advertise_workaround.py`) for a confirmed BlueZ/kernel bug; with it, both GATT app registration and a real, radio-level BLE advertisement (checked via `btmon` HCI tracing, not just exit codes) are confirmed on 2026-08-07 |
 | `shot_timer_pi/button.py` | **Verified on real hardware** | Constructs and arms cleanly on a Pi 3B once `lgpio` is installed (see "System packages" below); not press-tested since no button is wired up yet |
-| `shot_timer_pi/run_controller.py` | **Partially verified** | Constructs and runs cleanly up through the point `ble_service.py`'s advertising failure interrupts it; full delay->beep->detect sequence not yet exercised (no mic/buzzer wired up) |
-| `shot_timer_pi/main.py` | **Runs, doesn't complete successfully yet** | Blocked on the same BLE advertising issue as `ble_service.py` |
+| `shot_timer_pi/run_controller.py` | **Partially verified** | Constructs and runs cleanly (including through a full `ble_service.py` GATT+advertising publish - see above); full delay->beep->detect sequence not yet exercised (no mic/buzzer wired up) |
+| `shot_timer_pi/main.py` | **Not yet run as a whole** | `ble_service.py`'s advertising blocker is resolved (see above), but `main.py` itself pulls in `button.py`'s GPIO and hasn't been run end-to-end with a button actually wired up |
 
 `tests/` only ever imports the three pure modules - `shot_timer_pi/__init__.py` is
 deliberately empty (no submodule imports) so that importing any one of them can never
@@ -192,6 +192,22 @@ What each is for, since "install this pile of packages" isn't self-explanatory:
 - `rfkill` - not a build dependency, but see "Known issues" below: the Bluetooth adapter can
   come up soft-blocked, and `rfkill` is the tool to check/clear that.
 
+**Also required - `cap_net_admin` on `btmgmt`, for BLE advertising to work at all:**
+
+```bash
+sudo setcap cap_net_admin+eip $(which btmgmt)
+```
+
+This is not optional. See "Known issues" below for the full story, but in short:
+`ble_service.py` advertises via a direct `btmgmt` call rather than bluezero's own D-Bus
+advertising call, because the latter is broken on this Pi's BlueZ/kernel combination.
+`btmgmt` talks to the kernel's Bluetooth management socket, which requires `CAP_NET_ADMIN` -
+normally only root has it, but `shot-timer-pi.service` (and manual `python3 -m
+shot_timer_pi.main` runs) use a normal user for GPIO/audio access, so `btmgmt` needs the
+capability granted directly on the binary instead. **This does not survive a `bluez` package
+upgrade** (reinstalling the package replaces the binary, dropping the capability) - if
+advertising stops working after `apt upgrade`, re-run the command above.
+
 ### 5. Install Python dependencies
 
 ```bash
@@ -252,43 +268,93 @@ inside it). Check status/logs with `systemctl status shot-timer-pi` and
 
 ## Known issues
 
-**BLE advertising fails on the Pi 3B's onboard Bluetooth chip (open as of 2026-08-07).**
-Running `main.py` (or constructing `ShotTimerBleService` and calling `publish()` directly) gets
-through GATT application registration successfully (`bluezero.GATT: GATT application
-registered` in the log) but then fails with:
+**BLE advertising via bluezero/bluetoothd's D-Bus API is broken on this Pi's BlueZ/kernel
+combination - RESOLVED as of 2026-08-07 with a workaround, root cause identified.** This was
+previously (mis)diagnosed as a Pi 3B / BCM43430A1 hardware or firmware limitation. It is not.
+Direct HCI/mgmt tracing (`btmon`) proved the actual cause is a BlueZ-userspace-vs-kernel bug,
+and a working bypass is now shipped in `shot_timer_pi/ble_advertise_workaround.py`.
+
+**Symptom (still accurate as a description of the underlying bug, just not its cause):**
+constructing `ShotTimerBleService` and calling `publish()` gets through GATT application
+registration successfully (`bluezero.GATT: GATT application registered` in the log) but
+bluezero's own advertising call used to fail with:
 
 ```
 Failed to register advertisement: org.bluez.Error.Failed: Failed to register advertisement
 ```
 
-`journalctl -u bluetooth` shows the real underlying reason, which the D-Bus error above
-doesn't surface: `src/advertising.c:add_client_complete() Failed to add advertisement: Invalid
-Parameters (0x0d)` - an HCI-level error from the controller itself, not a BlueZ/D-Bus
-configuration problem. What's been ruled out:
+with `journalctl -u bluetooth` showing `src/advertising.c:add_client_complete() Failed to add
+advertisement: Invalid Parameters (0x0d)`.
 
-- **Not a powered-off/blocked adapter** - this Pi's adapter came up `rfkill soft-blocked` by
-  default (`sudo rfkill unblock bluetooth && bluetoothctl power on` fixes that specific state,
-  and is worth checking first on any fresh setup), but the advertising failure persists even
-  with the adapter confirmed `Powered: yes`.
-- **Not stale D-Bus state** - persists across a full `sudo systemctl restart bluetooth`.
-- **Not the advertisement payload exceeding the legacy 31-byte limit** - the working theory
-  going in (a 128-bit custom service UUID plus the "Shot Timer Pi" local name looked close to
-  overflowing it), but forcing `service_UUIDs` to empty before calling `publish()` (via
-  `svc._peripheral.primary_services = []`, since `primary_services` only ever feeds the
-  advertisement, not actual GATT registration - see `bluezero/peripheral.py`) made no
-  difference.
-- **Not an uninitialized/firmware-less adapter** - `dmesg` shows the Broadcom BCM43430A1
-  firmware patch (`brcm/BCM43430A1.raspberrypi,3-model-b.hcd`) loading successfully at boot,
-  and the chip identifies itself correctly (`hci0: BCM43438A1 37.4MHz Raspberry Pi 3-0141`).
+**Root cause, found via `btmon` (`sudo btmon -w /tmp/trace.btsnoop`, then `sudo btmon -r
+/tmp/trace.btsnoop`) capturing the actual kernel Bluetooth-management-socket traffic while
+`publish()` ran:** bluetoothd (BlueZ 5.82 on this Pi) registers a D-Bus advertisement by
+issuing the kernel's newer *split* mgmt commands - `Add Extended Advertising Parameters`
+(succeeds) immediately followed by `Add Extended Advertising Data` (fails with `Status:
+Invalid Parameters (0x0d)`). Critically, that failure happens **synchronously inside the
+kernel's own mgmt command handler, before any HCI command is sent to the controller at all** -
+there is no HCI traffic between the two mgmt calls in the trace. That rules out the BCM43430A1
+chip/firmware as the cause: the 0x0d status code is real, but it's the kernel's mgmt layer
+rejecting bluetoothd's request, not the radio rejecting an HCI command, despite the two using
+the same numeric status-code space (which is what made this look like a controller-level
+rejection in the first place). This reproduced identically with a bare-minimum advertisement
+(no service UUID, no local name - ruling out the 31-byte payload theory once and for all: even
+literally empty advertising data got the same rejection) and with the real, full-shaped
+advertisement (custom 128-bit UUID + "Shot Timer Pi" name, well within the 28/31-byte limits
+the kernel itself reported as available).
 
-What's left unconfirmed: this looks like a chip/firmware-level quirk specific to the Pi 3B's
-older BCM43430A1 controller's LE advertising support, which has documented rough edges in the
-wider Raspberry Pi/BlueZ community. Worth trying next: adjusting the advertisement's `Type`
-(bluezero defaults to `'peripheral'`) or other `LEAdvertisingManager1` parameters BlueZ sends
-for this specific chip, checking whether `bluetoothd`'s experimental-features flag changes
-anything, or - if this proves to be a genuine hardware limitation - falling back to a USB BLE
-dongle rather than the Pi 3B's onboard radio. Not yet tried: none of the above, in the
-interest of not burning arbitrary time speculatively before there's a specific next lead.
+**The workaround:** the kernel also still supports the older, single-shot `Add Advertising`
+mgmt command (opcode `0x003e`, what `btmgmt add-adv` uses) - and that path works fine on this
+exact kernel + BCM43430A1 combination. `btmon` confirmed every HCI command it triggers (`LE Set
+Advertising Parameters`, `LE Set Advertising Data`, `LE Set Scan Response Data`, `LE Set
+Advertise Enable`) comes back `Status: Success`, with the real `SERVICE_UUID` and "Shot Timer
+Pi" name correctly present in the advertising/scan-response data. Since neither bluezero nor
+BlueZ's D-Bus API expose a way to make bluetoothd choose the legacy path instead of the broken
+split one, `shot_timer_pi/ble_advertise_workaround.py` bypasses bluetoothd's advertising D-Bus
+call entirely and drives `btmgmt add-adv`/`clr-adv` directly via subprocess, while leaving GATT
+registration (a separate, unaffected BlueZ D-Bus interface, `GattManager1`) to bluezero as
+before - `ble_service.py`'s `publish()` monkeypatches the `Peripheral` instance's
+`AdvertisingManager.register_advertisement`/`unregister_advertisement` methods to redirect to
+this module (see `ble_advertise_workaround.patch_peripheral()`) rather than reimplementing
+`Peripheral.publish()` from scratch. This needs one one-time system setup step -
+`setcap cap_net_admin+eip $(which btmgmt)` - documented in "System packages" above, since
+`btmgmt` otherwise requires root and the service runs as a normal user.
+
+**What this was verified against, not just assumed:** the real `ShotTimerBleService` (not just
+a standalone reproduction script) was constructed with a real `RunController`/`RunStorage` and
+`publish()`'d on the actual Pi. The log showed both `bluezero.GATT: GATT application
+registered` and this module's own `BLE advertising started via btmgmt workaround` with the
+real `SERVICE_UUID` and "Shot Timer Pi" name, no errors. `btmon` tracing of that exact run
+showed `MGMT Command: Add Advertising` with `Advertising data length: 18` (the real 128-bit
+service UUID) and `Scan response length: 15, Name (complete): Shot Timer Pi`, followed by
+`MGMT Event: Advertising Added` and `Status: Success`. `sudo btmgmt info` afterward showed
+`current settings: ... advertising ...` - i.e. the controller was still actively advertising
+several seconds *after* the Python process had already exited, confirming this is real
+kernel/radio state, not just a process that didn't crash.
+
+**What's still open:**
+- **Not confirmed from a second BLE device.** Everything above is Pi-side/kernel-side
+  confirmation (HCI trace showing `Status: Success` for the exact advertising data a phone
+  would see). Nobody has yet pointed an actual phone/BLE scanner at the Pi while this is
+  running to confirm it shows up and is connectable end-to-end - that's the natural next step
+  for whoever has a phone in hand.
+- **Advertising set up this way outlives the Python process** (it's kernel state set via a
+  one-shot `btmgmt` command, not tied to a D-Bus client connection the way bluezero's own
+  approach would have been) - confirmed as true above, and it's what you want for a systemd
+  service that's expected to run indefinitely, but worth knowing if you're switching between
+  manual test runs: a previous run's advertisement can outlive `Ctrl-C` if the process was
+  killed rather than allowed to unwind (`ble_service.py`'s `publish()` -> bluezero's
+  `Peripheral.publish()` only calls `unregister_advertisement` inside a `KeyboardInterrupt`
+  handler, which is now wired to this module's `stop()` - a hard kill skips it). Run `sudo
+  btmgmt clr-adv` by hand if you need to clear a stale instance.
+- **Root cause is understood at the "which mgmt command works" level, not the kernel-source
+  level** - it's not yet known *why* this specific kernel (`6.18.34+rpt-rpi-v8`, dated
+  2026-06-09) rejects the split extended-advertising-data mgmt call. That's a plausible kernel
+  regression worth reporting upstream (raspberrypi/linux or a BlueZ mailing list), but wasn't
+  pursued further here since the workaround is sufficient for this project's needs.
+- Previously "ruled out" items (rfkill/power state, stale D-Bus state, 31-byte payload
+  overflow, uninitialized firmware) are all still correctly ruled out - re-confirmed during
+  this investigation, just superseded by the real root cause above.
 
 ## BLE GATT protocol reference
 

@@ -28,6 +28,7 @@ from typing import List, Optional
 
 from bluezero import adapter, peripheral
 
+from . import ble_advertise_workaround
 from .run_controller import RunController, RunResult
 from .storage import RunStorage
 
@@ -72,7 +73,8 @@ class ShotTimerBleService:
         self._sync_char = None
 
         address = adapter_address or _default_adapter_address()
-        self._peripheral = peripheral.Peripheral(address, local_name="Shot Timer Pi")
+        self._local_name = "Shot Timer Pi"
+        self._peripheral = peripheral.Peripheral(address, local_name=self._local_name)
 
         self._peripheral.add_service(srv_id=_SRV_ID, uuid=SERVICE_UUID, primary=True)
 
@@ -110,7 +112,17 @@ class ShotTimerBleService:
     def publish(self) -> None:
         """Advertises and starts bluezero's D-Bus event loop. Blocks until interrupted (see
         bluezero.peripheral.Peripheral.publish(), which catches KeyboardInterrupt itself) -
-        call this last."""
+        call this last.
+
+        Advertising itself goes through ble_advertise_workaround, not bluezero's own D-Bus
+        LEAdvertisingManager1 call - see that module's docstring for the confirmed BlueZ/kernel
+        bug (not a hardware limitation) this works around, and README.md's "Known issues" for
+        the investigation. GATT registration (the rest of what publish() does) is unaffected
+        and still goes through bluezero/bluetoothd normally.
+        """
+        ble_advertise_workaround.patch_peripheral(
+            self._peripheral, local_name=self._local_name, service_uuid=SERVICE_UUID
+        )
         self._peripheral.publish()
 
     # ----- bluezero -> us -----
