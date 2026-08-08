@@ -13,13 +13,17 @@ import com.shottimer.app.audio.AudioSource
 import com.shottimer.app.data.RunEntity
 import com.shottimer.app.data.RunRepository
 import com.shottimer.app.detection.ShotDetector
+import com.shottimer.app.pi.PiEvent
+import com.shottimer.app.pi.PiRepository
 import com.shottimer.app.settings.SettingsRepository
+import com.shottimer.app.settings.TimerSource
 import kotlin.math.PI
 import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -38,7 +42,9 @@ data class TimerUiState(
     val sensitivity: Float = DEFAULT_SENSITIVITY,
     val parTimeEnabled: Boolean = false,
     val parTimeSeconds: Float = DEFAULT_PAR_TIME_SECONDS,
-    val micErrorMessage: String? = null
+    val micErrorMessage: String? = null,
+    val sourceMode: TimerSource = TimerSource.LOCAL,
+    val piErrorMessage: String? = null
 )
 
 private const val TICK_INTERVAL_MS = 10L
@@ -77,9 +83,13 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
     private val audioSource = AudioSource()
     private val runRepository = RunRepository(application)
     private val settingsRepository = SettingsRepository.getInstance(application)
+    private val piRepository = PiRepository.getInstance(application)
 
     private val _uiState = MutableStateFlow(
-        TimerUiState(sensitivity = settingsRepository.settings.value.defaultSensitivity)
+        TimerUiState(
+            sensitivity = settingsRepository.settings.value.defaultSensitivity,
+            sourceMode = settingsRepository.settings.value.sourceMode
+        )
     )
     val uiState: StateFlow<TimerUiState> = _uiState.asStateFlow()
 
@@ -87,9 +97,54 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
     private var parJob: Job? = null
     private var startMarkNanos: Long = 0L
 
+    init {
+        // Always-on, independent of any run in progress: the Pi replays its offline backlog
+        // (runs recorded while no phone was connected) the moment a phone subscribes, over the
+        // same event stream a live run's Beep/Shot/RunComplete arrive on - see
+        // PiRepository/PiConnectionManager and pi-companion/shot_timer_pi/ble_service.py's
+        // _push_unsynced_runs. startPi()'s collector ignores Sync events; this one only acts on
+        // them, so the two never race over the same event.
+        viewModelScope.launch {
+            piRepository.events.collect { event ->
+                if (event is PiEvent.Sync) {
+                    runRepository.saveSyncedRunIfNew(
+                        RunEntity(
+                            // The Pi doesn't record a wall-clock timestamp for offline runs (see
+                            // ble_service.py's Sync payload shape) - "now" is sync time, not run
+                            // time, but it's the best available without extending the protocol.
+                            timestampEpochMillis = System.currentTimeMillis(),
+                            totalElapsedMillis = event.totalMs,
+                            shotTimestampsMillis = event.shotsMs,
+                            parTimeSeconds = null,
+                            piRunId = event.runId
+                        )
+                    )
+                }
+            }
+        }
+
+        // The LOCAL/PI toggle lives on the Pi Companion settings sub-screen (a different
+        // ViewModel instance - see PiConnectionViewModel.setSourceMode), so this has to observe
+        // SettingsRepository rather than read it once at construction, or flipping the toggle
+        // wouldn't take effect here until the app restarted.
+        viewModelScope.launch {
+            settingsRepository.settings.collect { settings ->
+                _uiState.value = _uiState.value.copy(sourceMode = settings.sourceMode)
+            }
+        }
+    }
+
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     fun start() {
         if (_uiState.value.runState == RunState.ARMED_WAITING || _uiState.value.runState == RunState.RUNNING) return
+        when (_uiState.value.sourceMode) {
+            TimerSource.LOCAL -> startLocal()
+            TimerSource.PI -> startPi()
+        }
+    }
+
+    @RequiresPermission(Manifest.permission.RECORD_AUDIO)
+    private fun startLocal() {
         val settings = settingsRepository.settings.value
         val detector = ShotDetector(
             thresholdAmplitude = thresholdFor(_uiState.value.sensitivity),
@@ -111,6 +166,57 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
             coroutineScope {
                 launch { runClock() }
                 launch { detectShots(detector) }
+            }
+        }
+    }
+
+    /** Pi mode never silently falls through to local mic detection if it isn't connected - the
+     * user picked this mode explicitly, so a missing connection is surfaced as an error rather
+     * than guessed around (see docs/PI_COMPANION.md's "companion, not a hard dependency"
+     * framing - the app doesn't paper over the difference). [PiRepository.arm] triggers the
+     * exact same delay/beep/detect run the Pi's physical button does; the phone just listens. */
+    private fun startPi() {
+        if (!piRepository.isReady) {
+            _uiState.value = _uiState.value.copy(
+                piErrorMessage = "Not connected to Pi - connect it in Settings first"
+            )
+            return
+        }
+        _uiState.value = freshIdleState().copy(runState = RunState.ARMED_WAITING, piErrorMessage = null)
+        piRepository.arm()
+        runJob = viewModelScope.launch {
+            piRepository.events.collect { event ->
+                when (event) {
+                    PiEvent.Beep -> {
+                        // Marked from when the phone received this notification, not the Pi's
+                        // own clock - the known, accepted BLE-latency cosmetic covered in
+                        // docs/PI_COMPANION.md. Every timestamp downstream of this is the Pi's
+                        // own, self-consistent relative to its own beep - only this one instant
+                        // is approximate.
+                        startMarkNanos = SystemClock.elapsedRealtimeNanos()
+                        _uiState.value = _uiState.value.copy(runState = RunState.RUNNING)
+                        launch { runClock() }
+                    }
+                    is PiEvent.Shot -> {
+                        _uiState.value = _uiState.value.copy(
+                            shotSplitsMillis = _uiState.value.shotSplitsMillis + event.elapsedMs
+                        )
+                    }
+                    is PiEvent.RunComplete -> {
+                        // The Pi's own totalMs/shotsMs are authoritative here, not the phone's
+                        // local clock or accumulated splits - it's the whole point of the "Pi
+                        // owns the run" design that these numbers need no correlation math.
+                        val finished = _uiState.value.copy(
+                            runState = RunState.STOPPED,
+                            elapsedMillis = event.totalMs,
+                            shotSplitsMillis = event.shotsMs
+                        )
+                        _uiState.value = finished
+                        saveRun(finished)
+                        cancel()
+                    }
+                    is PiEvent.Sync -> Unit
+                }
             }
         }
     }
@@ -162,7 +268,8 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
         return TimerUiState(
             sensitivity = current.sensitivity,
             parTimeEnabled = current.parTimeEnabled,
-            parTimeSeconds = current.parTimeSeconds
+            parTimeSeconds = current.parTimeSeconds,
+            sourceMode = current.sourceMode
         )
     }
 

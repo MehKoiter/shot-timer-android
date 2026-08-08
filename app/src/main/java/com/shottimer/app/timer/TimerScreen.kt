@@ -28,6 +28,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.shottimer.app.permission.OpenAppSettingsButton
 import com.shottimer.app.permission.rememberMicPermissionState
 import com.shottimer.app.results.RunSummaryView
+import com.shottimer.app.settings.TimerSource
 import com.shottimer.app.ui.theme.ShotTimerTheme
 import com.shottimer.app.util.formatElapsed
 
@@ -63,6 +64,10 @@ fun TimerScreen(
             Spacer(Modifier.height(8.dp))
             Text(text = uiState.micErrorMessage!!, color = MaterialTheme.colorScheme.error)
         }
+        if (uiState.piErrorMessage != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(text = uiState.piErrorMessage!!, color = MaterialTheme.colorScheme.error)
+        }
         Spacer(Modifier.height(24.dp))
 
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -95,9 +100,13 @@ fun TimerScreen(
         }
         Spacer(Modifier.height(16.dp))
 
+        // PI mode never touches the mic - only LOCAL mode needs to gate the Start button behind
+        // RECORD_AUDIO.
+        val needsMicPermission = uiState.sourceMode == TimerSource.LOCAL
         when {
-            !micPermission.isGranted && micPermission.isPermanentlyDenied -> OpenAppSettingsButton()
-            !micPermission.isGranted -> Button(onClick = micPermission.request) {
+            needsMicPermission && !micPermission.isGranted && micPermission.isPermanentlyDenied ->
+                OpenAppSettingsButton()
+            needsMicPermission && !micPermission.isGranted -> Button(onClick = micPermission.request) {
                 Text("Grant microphone permission to start")
             }
             uiState.runState == RunState.IDLE || uiState.runState == RunState.STOPPED ->
