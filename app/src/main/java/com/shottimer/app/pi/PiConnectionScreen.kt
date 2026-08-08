@@ -22,6 +22,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,6 +46,12 @@ fun PiConnectionScreen(
     val devices by viewModel.discoveredDevices.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val blePermission = rememberBlePermissionState(onGranted = viewModel::startScan)
+
+    // Leaving this screen mid-scan (back button, navigating away) shouldn't leave the radio
+    // scanning in the background - stopScan() is a no-op if nothing is in progress.
+    DisposableEffect(Unit) {
+        onDispose { viewModel.stopScan() }
+    }
 
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
         TextButton(onClick = onBack) { Text("< Back") }
@@ -84,6 +91,10 @@ fun PiConnectionScreen(
                         onClick = viewModel::disconnect,
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                     ) { Text("Disconnect") }
+                    connectionState is PiConnectionState.Scanning -> Button(
+                        onClick = viewModel::stopScan,
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) { Text("Stop scanning") }
                     else -> Button(onClick = viewModel::startScan) { Text("Scan for Pi") }
                 }
             }
@@ -133,6 +144,7 @@ private fun DeviceRow(device: BluetoothDevice, onClick: () -> Unit) {
 private fun statusText(state: PiConnectionState): String = when (state) {
     is PiConnectionState.Disconnected -> "Not connected"
     is PiConnectionState.Scanning -> "Scanning…"
+    is PiConnectionState.NotFound -> "No Pi found - check it's powered on and in range"
     is PiConnectionState.Connecting -> "Connecting…"
     is PiConnectionState.Connected -> "Connected"
     is PiConnectionState.Error -> "Error: ${state.message}"

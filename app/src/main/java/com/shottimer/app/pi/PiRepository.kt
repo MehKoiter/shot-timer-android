@@ -9,6 +9,8 @@ import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.os.ParcelUuid
 import androidx.annotation.RequiresPermission
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -22,6 +24,10 @@ import no.nordicsemi.android.ble.observer.ConnectionObserver
 sealed interface PiConnectionState {
     data object Disconnected : PiConnectionState
     data object Scanning : PiConnectionState
+    // Scan ran to completion (see SCAN_TIMEOUT_MS) without finding a matching device - distinct
+    // from Error since it's an expected outcome, not a failure, and from Disconnected so the UI
+    // can tell "never tried" apart from "tried, found nothing".
+    data object NotFound : PiConnectionState
     data class Connecting(val device: BluetoothDevice) : PiConnectionState
     data class Connected(val device: BluetoothDevice) : PiConnectionState
     data class Error(val message: String) : PiConnectionState
@@ -78,8 +84,26 @@ class PiRepository private constructor(context: Context) {
         })
     }
 
-    private val scanCallback = object : ScanCallback() {
+    // Main-thread Handler rather than a CoroutineScope: this is a plain singleton (not a
+    // ViewModel), and a single postDelayed/removeCallbacks pair is simpler to reason about than
+    // owning a Job here, consistent with the rest of this class talking to the Android BLE APIs
+    // directly rather than through coroutine wrappers (see class doc above on dropping ble-ktx).
+    private val timeoutHandler = Handler(Looper.getMainLooper())
+    // Explicit types on this pair: scanTimeoutRunnable and scanCallback reference each other
+    // (timeout stops the scanner; the scanner's result callback cancels the timeout), and without
+    // explicit types the compiler can't resolve that mutual reference ("recursive problem" error).
+    private val scanTimeoutRunnable: Runnable = Runnable {
+        // Stop the scanner directly (not via stopScan()) so we can land on NotFound instead of
+        // the Disconnected that stopScan() would otherwise set.
+        adapter?.bluetoothLeScanner?.stopScan(scanCallback)
+        _connectionState.value = PiConnectionState.NotFound
+    }
+
+    private val scanCallback: ScanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
+            // A device showed up before the timeout fired - cancel it so NotFound doesn't
+            // clobber the in-progress/successful scan once the user has something to connect to.
+            timeoutHandler.removeCallbacks(scanTimeoutRunnable)
             val device = result.device
             _discoveredDevices.update { current ->
                 if (current.any { it.address == device.address }) current else current + device
@@ -87,6 +111,7 @@ class PiRepository private constructor(context: Context) {
         }
 
         override fun onScanFailed(errorCode: Int) {
+            timeoutHandler.removeCallbacks(scanTimeoutRunnable)
             _connectionState.value = PiConnectionState.Error("Scan failed (code $errorCode)")
         }
     }
@@ -103,10 +128,13 @@ class PiRepository private constructor(context: Context) {
         val filter = ScanFilter.Builder().setServiceUuid(ParcelUuid(PI_SERVICE_UUID)).build()
         val settings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
         scanner.startScan(listOf(filter), settings, scanCallback)
+        timeoutHandler.removeCallbacks(scanTimeoutRunnable)
+        timeoutHandler.postDelayed(scanTimeoutRunnable, SCAN_TIMEOUT_MS)
     }
 
     @RequiresPermission(anyOf = [Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.ACCESS_FINE_LOCATION])
     fun stopScan() {
+        timeoutHandler.removeCallbacks(scanTimeoutRunnable)
         adapter?.bluetoothLeScanner?.stopScan(scanCallback)
         if (_connectionState.value is PiConnectionState.Scanning) {
             _connectionState.value = PiConnectionState.Disconnected
@@ -138,6 +166,10 @@ class PiRepository private constructor(context: Context) {
         get() = connectionManager.isArmReady
 
     companion object {
+        // How long startScan() waits for a matching advertisement before giving up and
+        // transitioning to NotFound.
+        private const val SCAN_TIMEOUT_MS = 10_000L
+
         @Volatile
         private var instance: PiRepository? = null
 
