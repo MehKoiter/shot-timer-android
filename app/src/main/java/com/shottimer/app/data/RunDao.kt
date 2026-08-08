@@ -12,4 +12,8 @@ interface RunDao {
 
     @Query("SELECT * FROM runs ORDER BY timestampEpochMillis DESC")
     fun observeAll(): Flow<List<RunEntity>>
+
+    /** Dedupes Pi Sync replays - see RunEntity.piRunId's doc for why delivery isn't exactly-once. */
+    @Query("SELECT EXISTS(SELECT 1 FROM runs WHERE piRunId = :piRunId)")
+    suspend fun existsByPiRunId(piRunId: Long): Boolean
 }

@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
@@ -27,12 +29,20 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.shottimer.app.pi.PiConnectionScreen
 
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = viewModel()
 ) {
+    var showPiConnection by remember { mutableStateOf(false) }
+
+    if (showPiConnection) {
+        PiConnectionScreen(onBack = { showPiConnection = false }, modifier = modifier)
+        return
+    }
+
     val settings by viewModel.settings.collectAsStateWithLifecycle()
 
     Column(
@@ -97,6 +107,19 @@ fun SettingsScreen(
                 value = settings.beepVolume,
                 onValueChange = viewModel::setBeepVolume,
                 modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        Card(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
+            ListItem(
+                modifier = Modifier.clickable { showPiConnection = true },
+                headlineContent = { Text("Pi Companion") },
+                supportingContent = {
+                    Text(
+                        text = "Timer source (phone mic or Pi), scan and connect - " +
+                            if (settings.sourceMode == TimerSource.PI) "PI mode" else "phone mic mode"
+                    )
+                }
             )
         }
     }

@@ -11,6 +11,7 @@ private const val KEY_LOCKOUT_MS = "echo_lockout_ms"
 private const val KEY_MIN_DELAY = "min_delay_seconds"
 private const val KEY_MAX_DELAY = "max_delay_seconds"
 private const val KEY_BEEP_VOLUME = "beep_volume"
+private const val KEY_SOURCE_MODE = "source_mode"
 
 /**
  * Plain SharedPreferences rather than DataStore: a handful of scalar settings doesn't need
@@ -35,7 +36,10 @@ class SettingsRepository private constructor(context: Context) {
             echoLockoutMs = prefs.getLong(KEY_LOCKOUT_MS, defaults.echoLockoutMs),
             minDelaySeconds = prefs.getFloat(KEY_MIN_DELAY, defaults.minDelaySeconds),
             maxDelaySeconds = prefs.getFloat(KEY_MAX_DELAY, defaults.maxDelaySeconds),
-            beepVolume = prefs.getFloat(KEY_BEEP_VOLUME, defaults.beepVolume)
+            beepVolume = prefs.getFloat(KEY_BEEP_VOLUME, defaults.beepVolume),
+            sourceMode = prefs.getString(KEY_SOURCE_MODE, null)?.let { name ->
+                runCatching { TimerSource.valueOf(name) }.getOrNull()
+            } ?: defaults.sourceMode
         )
     }
 
@@ -48,6 +52,7 @@ class SettingsRepository private constructor(context: Context) {
             .putFloat(KEY_MIN_DELAY, updated.minDelaySeconds)
             .putFloat(KEY_MAX_DELAY, updated.maxDelaySeconds)
             .putFloat(KEY_BEEP_VOLUME, updated.beepVolume)
+            .putString(KEY_SOURCE_MODE, updated.sourceMode.name)
             .apply()
     }
 
