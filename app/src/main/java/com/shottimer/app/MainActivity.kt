@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Settings
@@ -22,14 +23,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.shottimer.app.audio.MicTestScreen
+import com.shottimer.app.drills.DrillsScreen
 import com.shottimer.app.history.HistoryScreen
 import com.shottimer.app.settings.SettingsScreen
+import com.shottimer.app.timer.ShotTimerViewModel
 import com.shottimer.app.timer.TimerScreen
 import com.shottimer.app.ui.theme.ShotTimerTheme
 
 private enum class AppScreen(val label: String) {
     TIMER("Timer"),
+    DRILLS("Drills"),
     MIC_TEST("Mic Test"),
     HISTORY("History"),
     SETTINGS("Settings")
@@ -50,6 +55,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun AppRoot() {
     var screen by remember { mutableStateOf(AppScreen.TIMER) }
+    val shotTimerViewModel: ShotTimerViewModel = viewModel()
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -60,6 +66,12 @@ private fun AppRoot() {
                     onClick = { screen = AppScreen.TIMER },
                     icon = { Icon(Icons.Default.Timer, contentDescription = null) },
                     label = { Text(AppScreen.TIMER.label) }
+                )
+                NavigationBarItem(
+                    selected = screen == AppScreen.DRILLS,
+                    onClick = { screen = AppScreen.DRILLS },
+                    icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
+                    label = { Text(AppScreen.DRILLS.label) }
                 )
                 NavigationBarItem(
                     selected = screen == AppScreen.MIC_TEST,
@@ -86,7 +98,14 @@ private fun AppRoot() {
             .fillMaxSize()
             .padding(innerPadding)
         when (screen) {
-            AppScreen.TIMER -> TimerScreen(modifier = contentModifier)
+            AppScreen.TIMER -> TimerScreen(modifier = contentModifier, viewModel = shotTimerViewModel)
+            AppScreen.DRILLS -> DrillsScreen(
+                modifier = contentModifier,
+                onStartDrill = { drill ->
+                    shotTimerViewModel.selectDrill(drill)
+                    screen = AppScreen.TIMER
+                }
+            )
             AppScreen.MIC_TEST -> MicTestScreen(modifier = contentModifier)
             AppScreen.HISTORY -> HistoryScreen(modifier = contentModifier)
             AppScreen.SETTINGS -> SettingsScreen(modifier = contentModifier)

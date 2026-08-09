@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -65,6 +66,18 @@ fun TimerScreen(
         }
         Spacer(Modifier.height(24.dp))
 
+        val drill = uiState.selectedDrill
+        if (drill != null) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(text = drill.name, style = MaterialTheme.typography.titleSmall)
+                    Text(text = drill.instructions, style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = { viewModel.selectDrill(null) }) { Text("Clear drill") }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(text = "Sensitivity: ${(uiState.sensitivity * 100).toInt()}%")
@@ -112,7 +125,8 @@ fun TimerScreen(
         RunSummaryView(
             totalElapsedMillis = uiState.elapsedMillis,
             shotTimestampsMillis = uiState.shotSplitsMillis,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            expectedRoundCount = uiState.selectedDrill?.roundCount
         )
     }
 }

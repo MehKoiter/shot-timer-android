@@ -10,5 +10,7 @@ data class RunEntity(
     val totalElapsedMillis: Long,
     val shotTimestampsMillis: List<Long>,
     /** Null when the run wasn't a par-time drill. */
-    val parTimeSeconds: Float?
+    val parTimeSeconds: Float?,
+    /** Null for freeform practice runs not tied to a named drill from DrillLibrary. */
+    val drillName: String? = null
 )
