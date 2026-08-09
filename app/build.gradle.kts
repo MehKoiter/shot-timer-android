@@ -20,6 +20,13 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Distinct package + label from the stable release build (built from main), so
+            // side-loading this in-progress branch during testing never overwrites the app the
+            // user actually relies on day to day - they can have both installed at once.
+            applicationIdSuffix = ".dev"
+            resValue("string", "app_name", "Shot Timer Dev")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
