@@ -14,7 +14,7 @@ private val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
-@Database(entities = [RunEntity::class], version = 2, exportSchema = false)
+@Database(entities = [RunEntity::class], version = 2, exportSchema = true)
 @TypeConverters(Converters::class)
 abstract class ShotTimerDatabase : RoomDatabase() {
     abstract fun runDao(): RunDao
