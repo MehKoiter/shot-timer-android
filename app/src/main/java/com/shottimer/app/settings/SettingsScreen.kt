@@ -1,25 +1,33 @@
 package com.shottimer.app.settings
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.ImeAction
@@ -47,7 +55,35 @@ fun SettingsScreen(
             style = MaterialTheme.typography.bodySmall
         )
 
-        SettingSection(title = "Default sensitivity: ${(settings.defaultSensitivity * 100).toInt()}%") {
+        var showSensitivityHelp by remember { mutableStateOf(false) }
+        SettingSection(
+            title = "Default sensitivity: ${(settings.defaultSensitivity * 100).toInt()}%",
+            titleTrailing = {
+                IconButton(
+                    onClick = { showSensitivityHelp = !showSensitivityHelp },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(Icons.Default.Info, contentDescription = "How does sensitivity work?")
+                }
+            }
+        ) {
+            if (showSensitivityHelp) {
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Higher sensitivity picks up quieter sounds - turn it up if shots " +
+                            "aren't being detected. Lower sensitivity needs a louder sound to " +
+                            "trigger - turn it down if background noise or handling the gun/phone " +
+                            "is causing false detections.",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+            }
             Slider(
                 value = settings.defaultSensitivity,
                 onValueChange = viewModel::setDefaultSensitivity,
@@ -146,10 +182,17 @@ private fun FloatField(
 }
 
 @Composable
-private fun SettingSection(title: String, content: @Composable () -> Unit) {
+private fun SettingSection(
+    title: String,
+    titleTrailing: @Composable (() -> Unit)? = null,
+    content: @Composable () -> Unit
+) {
     Card(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(text = title, style = MaterialTheme.typography.titleSmall)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = title, style = MaterialTheme.typography.titleSmall)
+                titleTrailing?.invoke()
+            }
             content()
         }
     }
