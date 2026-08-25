@@ -31,4 +31,20 @@ interface RunDao {
             "FROM runs WHERE shooterName IS NOT NULL GROUP BY shooterName ORDER BY shooterName"
     )
     fun observeShooterStats(): Flow<List<ShooterStats>>
+
+    /** Runs never uploaded to Firestore yet - see SyncRepository.syncNow(). Ascending so an
+     * interrupted sync resumes roughly where it left off rather than re-racing the newest runs
+     * first every time. */
+    @Query("SELECT * FROM runs WHERE remoteId IS NULL ORDER BY timestampEpochMillis ASC")
+    suspend fun getUnsyncedRuns(): List<RunEntity>
+
+    /** The set of remote ids already present locally, so a pull can skip docs already synced -
+     * either uploaded from this device or pulled down on a previous sync. */
+    @Query("SELECT remoteId FROM runs WHERE remoteId IS NOT NULL")
+    suspend fun getSyncedRemoteIds(): List<String>
+
+    /** Deliberately narrow instead of a general @Update - a run is otherwise immutable once
+     * saved, and this is the only field sync is ever allowed to change after the fact. */
+    @Query("UPDATE runs SET remoteId = :remoteId WHERE id = :id")
+    suspend fun markSynced(id: Long, remoteId: String)
 }

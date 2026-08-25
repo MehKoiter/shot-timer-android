@@ -15,5 +15,9 @@ data class RunEntity(
     val drillName: String? = null,
     /** Null when no shooter was tagged for this run - lets one phone time multiple people
      * (e.g. a group of friends at the range) and later sort/filter History by who was shooting. */
-    val shooterName: String? = null
+    val shooterName: String? = null,
+    /** Null until this run has been uploaded to Firestore (`users/{uid}/runs/{remoteId}`);
+     * non-null forever after - a run is uploaded at most once, never re-uploaded or edited in
+     * place. See SyncRepository. */
+    val remoteId: String? = null
 )

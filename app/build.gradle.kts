@@ -41,6 +41,13 @@ android {
     buildFeatures {
         compose = true
     }
+
+    sourceSets {
+        // MigrationTestHelper reads the exported schema JSON at runtime to know the exact
+        // starting-version table shape - without this, every createDatabase(name, version) call
+        // fails looking for it in test assets.
+        getByName("androidTest").assets.srcDirs("$projectDir/schemas")
+    }
 }
 
 dependencies {
@@ -67,6 +74,7 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.room:room-testing:2.8.4")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

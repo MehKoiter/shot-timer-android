@@ -15,4 +15,10 @@ class RunRepository(context: Context) {
     fun observeDistinctShooterNames(): Flow<List<String>> = dao.observeDistinctShooterNames()
 
     fun observeShooterStats(): Flow<List<ShooterStats>> = dao.observeShooterStats()
+
+    suspend fun getUnsyncedRuns(): List<RunEntity> = dao.getUnsyncedRuns()
+
+    suspend fun getSyncedRemoteIds(): List<String> = dao.getSyncedRemoteIds()
+
+    suspend fun markSynced(id: Long, remoteId: String) = dao.markSynced(id, remoteId)
 }
