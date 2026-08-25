@@ -1,5 +1,6 @@
 package com.shottimer.app.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
@@ -35,12 +37,21 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.shottimer.app.audio.MicTestScreen
 
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = viewModel()
 ) {
+    // Mic Test used to be its own bottom-nav tab - moved here as a sub-screen (same list/detail
+    // push-pop pattern HistoryScreen uses) to make room in the nav bar as more tabs were added.
+    var showMicTest by remember { mutableStateOf(false) }
+    if (showMicTest) {
+        MicTestScreen(onBack = { showMicTest = false }, modifier = modifier)
+        return
+    }
+
     val settings by viewModel.settings.collectAsStateWithLifecycle()
 
     Column(
@@ -133,6 +144,14 @@ fun SettingsScreen(
                 value = settings.beepVolume,
                 onValueChange = viewModel::setBeepVolume,
                 modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        Card(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
+            ListItem(
+                modifier = Modifier.clickable { showMicTest = true },
+                headlineContent = { Text("Mic Test") },
+                supportingContent = { Text("Check microphone capture levels") }
             )
         }
     }

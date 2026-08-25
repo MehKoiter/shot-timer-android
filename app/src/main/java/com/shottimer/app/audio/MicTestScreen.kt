@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -25,8 +26,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.shottimer.app.permission.OpenAppSettingsButton
 import com.shottimer.app.permission.rememberMicPermissionState
 
+/** Reached from Settings, not its own bottom-nav tab - mirrors HistoryScreen's list/detail
+ * push-pop pattern (a local `showX` boolean in the caller), so [onBack] is required. */
 @Composable
 fun MicTestScreen(
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MicTestViewModel = viewModel()
 ) {
@@ -43,6 +47,8 @@ fun MicTestScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        TextButton(onClick = onBack) { Text("< Back") }
+        Spacer(Modifier.height(8.dp))
         Text(text = "Mic Test", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(24.dp))
 

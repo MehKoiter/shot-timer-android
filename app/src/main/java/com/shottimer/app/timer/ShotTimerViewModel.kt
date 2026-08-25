@@ -25,8 +25,10 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -40,7 +42,8 @@ data class TimerUiState(
     val parTimeEnabled: Boolean = false,
     val parTimeSeconds: Float = DEFAULT_PAR_TIME_SECONDS,
     val micErrorMessage: String? = null,
-    val selectedDrill: Drill? = null
+    val selectedDrill: Drill? = null,
+    val selectedShooter: String? = null
 )
 
 private const val TICK_INTERVAL_MS = 10L
@@ -84,6 +87,11 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
         TimerUiState(sensitivity = settingsRepository.settings.value.defaultSensitivity)
     )
     val uiState: StateFlow<TimerUiState> = _uiState.asStateFlow()
+
+    /** Previously-used shooter names, for the picker's "tap to reuse" list - see docs on
+     * [com.shottimer.app.data.RunDao.observeDistinctShooterNames]. */
+    val knownShooters: StateFlow<List<String>> = runRepository.observeDistinctShooterNames()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private var runJob: Job? = null
     private var parJob: Job? = null
@@ -139,7 +147,8 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
                     totalElapsedMillis = finishedState.elapsedMillis,
                     shotTimestampsMillis = finishedState.shotSplitsMillis,
                     parTimeSeconds = if (finishedState.parTimeEnabled) finishedState.parTimeSeconds else null,
-                    drillName = finishedState.selectedDrill?.name
+                    drillName = finishedState.selectedDrill?.name,
+                    shooterName = finishedState.selectedShooter
                 )
             )
         }
@@ -147,6 +156,11 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun selectDrill(drill: Drill?) {
         _uiState.value = _uiState.value.copy(selectedDrill = drill)
+    }
+
+    /** Blank/whitespace-only names collapse to null rather than saving as an empty-string tag. */
+    fun selectShooter(name: String?) {
+        _uiState.value = _uiState.value.copy(selectedShooter = name?.trim()?.takeIf { it.isNotEmpty() })
     }
 
     fun setSensitivity(sensitivity: Float) {
@@ -170,7 +184,8 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
             sensitivity = current.sensitivity,
             parTimeEnabled = current.parTimeEnabled,
             parTimeSeconds = current.parTimeSeconds,
-            selectedDrill = current.selectedDrill
+            selectedDrill = current.selectedDrill,
+            selectedShooter = current.selectedShooter
         )
     }
 
