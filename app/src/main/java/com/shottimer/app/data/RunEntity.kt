@@ -12,5 +12,8 @@ data class RunEntity(
     /** Null when the run wasn't a par-time drill. */
     val parTimeSeconds: Float?,
     /** Null for freeform practice runs not tied to a named drill from DrillLibrary. */
-    val drillName: String? = null
+    val drillName: String? = null,
+    /** Null when no shooter was tagged for this run - lets one phone time multiple people
+     * (e.g. a group of friends at the range) and later sort/filter History by who was shooting. */
+    val shooterName: String? = null
 )

@@ -14,7 +14,13 @@ private val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
-@Database(entities = [RunEntity::class], version = 2, exportSchema = true)
+private val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE runs ADD COLUMN shooterName TEXT")
+    }
+}
+
+@Database(entities = [RunEntity::class], version = 3, exportSchema = true)
 @TypeConverters(Converters::class)
 abstract class ShotTimerDatabase : RoomDatabase() {
     abstract fun runDao(): RunDao
@@ -29,7 +35,7 @@ abstract class ShotTimerDatabase : RoomDatabase() {
                     context.applicationContext,
                     ShotTimerDatabase::class.java,
                     "shot_timer.db"
-                ).addMigrations(MIGRATION_1_2).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
             }
     }
 }

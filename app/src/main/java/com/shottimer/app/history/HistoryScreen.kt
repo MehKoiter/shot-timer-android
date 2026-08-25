@@ -40,6 +40,7 @@ import java.time.format.DateTimeFormatter
 
 private val TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("MMM d, h:mm a")
 private const val PRACTICE_CATEGORY = "Practice"
+private const val UNASSIGNED_SHOOTER = "Unassigned"
 
 private fun formatTimestamp(epochMillis: Long): String =
     Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).format(TIMESTAMP_FORMATTER)
@@ -70,14 +71,27 @@ private fun RunList(runs: List<RunEntity>, onSelect: (RunEntity) -> Unit, modifi
     // null selection = "All". Categories reflect what's actually in the data, not a hardcoded
     // drill list, so this still makes sense if DrillLibrary changes later.
     var selectedCategory by remember { mutableStateOf<String?>(null) }
+    var selectedShooter by remember { mutableStateOf<String?>(null) }
     val categories = remember(runs) {
         listOf(null) + runs.mapNotNull { it.drillName }.distinct().sorted() + PRACTICE_CATEGORY
     }
-    val filteredRuns = remember(runs, selectedCategory) {
-        when (selectedCategory) {
-            null -> runs
-            PRACTICE_CATEGORY -> runs.filter { it.drillName == null }
-            else -> runs.filter { it.drillName == selectedCategory }
+    val shooters = remember(runs) {
+        listOf(null) + runs.mapNotNull { it.shooterName }.distinct().sorted() + UNASSIGNED_SHOOTER
+    }
+    // Both filters apply together (AND) - e.g. "John's El Presidente runs" is a real, expected query.
+    val filteredRuns = remember(runs, selectedCategory, selectedShooter) {
+        runs.filter { run ->
+            val matchesCategory = when (selectedCategory) {
+                null -> true
+                PRACTICE_CATEGORY -> run.drillName == null
+                else -> run.drillName == selectedCategory
+            }
+            val matchesShooter = when (selectedShooter) {
+                null -> true
+                UNASSIGNED_SHOOTER -> run.shooterName == null
+                else -> run.shooterName == selectedShooter
+            }
+            matchesCategory && matchesShooter
         }
     }
 
@@ -89,7 +103,11 @@ private fun RunList(runs: List<RunEntity>, onSelect: (RunEntity) -> Unit, modifi
             return
         }
 
+        Text(text = "Drill", style = MaterialTheme.typography.labelMedium)
         CategoryFilterRow(categories = categories, selected = selectedCategory, onSelect = { selectedCategory = it })
+        Spacer(Modifier.height(8.dp))
+        Text(text = "Shooter", style = MaterialTheme.typography.labelMedium)
+        CategoryFilterRow(categories = shooters, selected = selectedShooter, onSelect = { selectedShooter = it })
         Spacer(Modifier.height(8.dp))
 
         LazyColumn {
@@ -119,6 +137,7 @@ private fun CategoryFilterRow(categories: List<String?>, selected: String?, onSe
 private fun RunRow(run: RunEntity, onClick: () -> Unit) {
     val detail = "${run.shotTimestampsMillis.size} shots" +
         (run.drillName?.let { "  ·  $it" } ?: "") +
+        (run.shooterName?.let { "  ·  $it" } ?: "") +
         (run.parTimeSeconds?.let { "  ·  Par %.1fs".format(it) } ?: "")
 
     ListItem(
@@ -157,6 +176,9 @@ private fun RunDetail(
         Spacer(Modifier.height(8.dp))
         if (run.drillName != null) {
             Text(text = run.drillName, style = MaterialTheme.typography.titleSmall)
+        }
+        if (run.shooterName != null) {
+            Text(text = run.shooterName, style = MaterialTheme.typography.titleSmall)
         }
         Text(text = formatTimestamp(run.timestampEpochMillis), style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(16.dp))

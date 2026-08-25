@@ -11,4 +11,8 @@ class RunRepository(context: Context) {
     suspend fun deleteRun(run: RunEntity) = dao.delete(run)
 
     fun observeRuns(): Flow<List<RunEntity>> = dao.observeAll()
+
+    fun observeDistinctShooterNames(): Flow<List<String>> = dao.observeDistinctShooterNames()
+
+    fun observeShooterStats(): Flow<List<ShooterStats>> = dao.observeShooterStats()
 }

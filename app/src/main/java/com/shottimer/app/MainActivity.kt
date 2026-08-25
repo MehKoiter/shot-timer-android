@@ -8,8 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Icon
@@ -24,10 +24,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.shottimer.app.audio.MicTestScreen
 import com.shottimer.app.drills.DrillsScreen
 import com.shottimer.app.history.HistoryScreen
 import com.shottimer.app.settings.SettingsScreen
+import com.shottimer.app.shooters.ShootersScreen
 import com.shottimer.app.timer.ShotTimerViewModel
 import com.shottimer.app.timer.TimerScreen
 import com.shottimer.app.ui.theme.ShotTimerTheme
@@ -35,7 +35,7 @@ import com.shottimer.app.ui.theme.ShotTimerTheme
 private enum class AppScreen(val label: String) {
     TIMER("Timer"),
     DRILLS("Drills"),
-    MIC_TEST("Mic Test"),
+    SHOOTERS("Shooters"),
     HISTORY("History"),
     SETTINGS("Settings")
 }
@@ -74,10 +74,10 @@ private fun AppRoot() {
                     label = { Text(AppScreen.DRILLS.label) }
                 )
                 NavigationBarItem(
-                    selected = screen == AppScreen.MIC_TEST,
-                    onClick = { screen = AppScreen.MIC_TEST },
-                    icon = { Icon(Icons.Default.Mic, contentDescription = null) },
-                    label = { Text(AppScreen.MIC_TEST.label) }
+                    selected = screen == AppScreen.SHOOTERS,
+                    onClick = { screen = AppScreen.SHOOTERS },
+                    icon = { Icon(Icons.Default.Groups, contentDescription = null) },
+                    label = { Text(AppScreen.SHOOTERS.label) }
                 )
                 NavigationBarItem(
                     selected = screen == AppScreen.HISTORY,
@@ -106,7 +106,7 @@ private fun AppRoot() {
                     screen = AppScreen.TIMER
                 }
             )
-            AppScreen.MIC_TEST -> MicTestScreen(modifier = contentModifier)
+            AppScreen.SHOOTERS -> ShootersScreen(modifier = contentModifier)
             AppScreen.HISTORY -> HistoryScreen(modifier = contentModifier)
             AppScreen.SETTINGS -> SettingsScreen(modifier = contentModifier)
         }

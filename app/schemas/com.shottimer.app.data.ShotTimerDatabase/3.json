@@ -1,0 +1,64 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 3,
+    "identityHash": "f438218ea6f067f08fd50eac1572fd20",
+    "entities": [
+      {
+        "tableName": "runs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `timestampEpochMillis` INTEGER NOT NULL, `totalElapsedMillis` INTEGER NOT NULL, `shotTimestampsMillis` TEXT NOT NULL, `parTimeSeconds` REAL, `drillName` TEXT, `shooterName` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestampEpochMillis",
+            "columnName": "timestampEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalElapsedMillis",
+            "columnName": "totalElapsedMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "shotTimestampsMillis",
+            "columnName": "shotTimestampsMillis",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "parTimeSeconds",
+            "columnName": "parTimeSeconds",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "drillName",
+            "columnName": "drillName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "shooterName",
+            "columnName": "shooterName",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'f438218ea6f067f08fd50eac1572fd20')"
+    ]
+  }
+}
