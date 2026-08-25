@@ -38,6 +38,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.shottimer.app.audio.MicTestScreen
+import com.shottimer.app.auth.AuthState
+import com.shottimer.app.sync.BackupScreen
+import com.shottimer.app.sync.SyncViewModel
 
 @Composable
 fun SettingsScreen(
@@ -52,7 +55,16 @@ fun SettingsScreen(
         return
     }
 
+    // Same push/pop pattern as showMicTest above.
+    var showBackup by remember { mutableStateOf(false) }
+    if (showBackup) {
+        BackupScreen(onBack = { showBackup = false }, modifier = modifier)
+        return
+    }
+
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val syncViewModel: SyncViewModel = viewModel()
+    val authState by syncViewModel.authState.collectAsStateWithLifecycle()
 
     Column(
         modifier = modifier
@@ -152,6 +164,21 @@ fun SettingsScreen(
                 modifier = Modifier.clickable { showMicTest = true },
                 headlineContent = { Text("Mic Test") },
                 supportingContent = { Text("Check microphone capture levels") }
+            )
+        }
+
+        Card(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
+            ListItem(
+                modifier = Modifier.clickable { showBackup = true },
+                headlineContent = { Text("Back up to Google") },
+                supportingContent = {
+                    Text(
+                        when (val state = authState) {
+                            is AuthState.SignedOut -> "Not signed in"
+                            is AuthState.SignedIn -> "Signed in as ${state.email ?: state.displayName ?: "your account"}"
+                        }
+                    )
+                }
             )
         }
     }
