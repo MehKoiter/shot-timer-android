@@ -1,3 +1,112 @@
 <resources>
     <string name="app_name">Shot Timer</string>
+
+    <!-- Shared -->
+    <string name="back">Back</string>
+    <string name="cancel">Cancel</string>
+    <string name="undo">Undo</string>
+
+    <!-- Bottom navigation / screen titles -->
+    <string name="tab_timer">Timer</string>
+    <string name="tab_drills">Drills</string>
+    <string name="tab_shooters">Shooters</string>
+    <string name="tab_history">History</string>
+    <string name="tab_settings">Settings</string>
+
+    <!-- First-launch sign-in prompt -->
+    <string name="signin_prompt_title">Back up your runs?</string>
+    <string name="signin_prompt_body">Sign in with Google to keep your run history safe if you switch or lose your phone. Entirely optional - the timer works fully offline, and you can always sign in later from Settings.</string>
+    <string name="signin_prompt_confirm">Sign in</string>
+    <string name="signin_prompt_dismiss">Not now</string>
+
+    <!-- Timer screen -->
+    <string name="status_ready">Ready</string>
+    <string name="status_standby">Stand by…</string>
+    <string name="status_go">GO</string>
+    <string name="status_stopped">Stopped</string>
+    <string name="tag_shooter">Tag shooter</string>
+    <string name="run_options_chip">Options</string>
+    <string name="clear_drill">Clear drill</string>
+    <string name="start">Start</string>
+    <string name="stop">Stop</string>
+    <string name="grant_mic_to_start">Grant microphone permission to start</string>
+    <string name="run_options_title">Run options</string>
+    <string name="run_options_subtitle">Apply to this run only - defaults live in Settings.</string>
+    <string name="sensitivity_pct">Sensitivity: %1$d%%</string>
+    <string name="par_time">Par time</string>
+    <string name="par_seconds">Par: %1$.1fs</string>
+    <string name="set_shooter">Set shooter</string>
+    <string name="shooter_name_label">Name</string>
+    <string name="pick_previous_shooter">Or pick someone you\'ve timed before:</string>
+    <string name="set">Set</string>
+    <string name="mic_unavailable">Microphone unavailable - shot detection stopped for this run</string>
+
+    <!-- Run summary -->
+    <string name="first_shot">First Shot</string>
+    <string name="total_time">Total Time</string>
+    <string name="shots_count">Shots (%1$d)</string>
+    <string name="shots_count_expected">Shots (%1$d/%2$d)</string>
+    <string name="no_shots_yet">No shots detected yet</string>
+    <string name="shot_n">Shot %1$d</string>
+
+    <!-- History -->
+    <string name="filter_drill">Drill</string>
+    <string name="filter_shooter">Shooter</string>
+    <string name="filter_all">All</string>
+    <string name="filter_practice">Practice</string>
+    <string name="filter_unassigned">Unassigned</string>
+    <string name="no_runs_yet">No runs yet - completed runs from the Timer tab will show up here</string>
+    <string name="run_shots">%1$d shots</string>
+    <string name="par_short">Par %1$.1fs</string>
+    <string name="delete_run">Delete run</string>
+    <string name="run_deleted">Run deleted</string>
+
+    <!-- Shooters -->
+    <string name="shooters_desc">Stats for everyone you\'ve tagged as the shooter on a run - set a name on the Timer tab before starting to track someone. Tap a shooter to see their runs.</string>
+    <string name="no_shooters_yet">No shooters tagged yet - completed runs with a shooter set will show up here</string>
+    <string name="stat_runs">Runs</string>
+    <string name="stat_best">Best</string>
+    <string name="stat_average">Average</string>
+
+    <!-- Drills -->
+    <string name="drills_desc">Classic timed drills. Starting one loads the Timer screen with its round count so you can see your progress live - hit verification (zone, head shot, etc.) is on you and the target, the app only times and counts shots.</string>
+    <string name="drill_rounds">%1$d rounds</string>
+    <string name="start_this_drill">Start this drill</string>
+
+    <!-- Settings -->
+    <string name="settings_desc">These are defaults for new runs - changes don\'t affect a run already in progress.</string>
+    <string name="default_sensitivity_pct">Default sensitivity: %1$d%%</string>
+    <string name="sensitivity_help_cd">How does sensitivity work?</string>
+    <string name="sensitivity_help_body">Higher sensitivity picks up quieter sounds - turn it up if shots aren\'t being detected. Lower sensitivity needs a louder sound to trigger - turn it down if background noise or handling the gun/phone is causing false detections.</string>
+    <string name="echo_lockout_title">Echo lockout</string>
+    <string name="echo_lockout_desc">How long after a detected shot to ignore further sound - filters out echoes/reverb without missing a genuinely fast next shot. %1$d-%2$d ms.</string>
+    <string name="lockout_ms_label">Lockout (ms)</string>
+    <string name="random_delay_title">Random delay: %1$.1f-%2$.1fs</string>
+    <string name="random_delay_desc">Range for the random pause between pressing Start and the beep.</string>
+    <string name="beep_volume_pct">Beep volume: %1$d%%</string>
+    <string name="beep_volume_desc">Relative to your phone\'s Alarm volume, which the beep also depends on.</string>
+    <string name="mic_test">Mic Test</string>
+    <string name="mic_test_desc">Check microphone capture levels</string>
+    <string name="backup_title">Back up to Google</string>
+    <string name="not_signed_in">Not signed in</string>
+    <string name="signed_in_as">Signed in as %1$s</string>
+    <string name="send_feedback">Send Feedback</string>
+    <string name="send_feedback_desc">Report a bug or issue with this test build</string>
+    <string name="feedback_prompt">What\'s going on?</string>
+
+    <!-- Mic test -->
+    <string name="start_listening">Start listening</string>
+    <string name="stop_listening">Stop listening</string>
+    <string name="mic_permission_required">Microphone permission is required to test capture.</string>
+    <string name="grant_mic">Grant microphone permission</string>
+    <string name="open_app_settings_mic">Open app settings to enable microphone</string>
+
+    <!-- Backup -->
+    <string name="backup_explainer">Sign in with your Google account to back up your run history to the cloud. This is entirely optional - the app keeps working fully offline if you never sign in, and everything you\'ve already recorded stays right where it is.</string>
+    <string name="signin_google">Sign in with Google</string>
+    <string name="last_synced">Last synced: %1$s</string>
+    <string name="never">Never</string>
+    <string name="sync_now">Sync now</string>
+    <string name="cloud_delete_note">Note: deleting a run on this device only removes it locally. It may still exist in the cloud and could reappear here if you sync again on this or another device.</string>
+    <string name="sign_out">Sign out</string>
 </resources>

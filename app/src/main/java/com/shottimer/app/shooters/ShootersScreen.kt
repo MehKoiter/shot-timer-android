@@ -17,9 +17,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.shottimer.app.R
 import com.shottimer.app.data.ShooterStats
 import com.shottimer.app.ui.ScreenScaffold
 import com.shottimer.app.util.formatElapsed
@@ -36,17 +38,16 @@ fun ShootersScreen(
 ) {
     val stats by viewModel.stats.collectAsStateWithLifecycle()
 
-    ScreenScaffold(title = "Shooters", modifier = modifier) {
+    ScreenScaffold(title = stringResource(R.string.tab_shooters), modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
             Text(
-                text = "Stats for everyone you've tagged as the shooter on a run - set a name on " +
-                    "the Timer tab before starting to track someone. Tap a shooter to see their runs.",
+                text = stringResource(R.string.shooters_desc),
                 style = MaterialTheme.typography.bodySmall
             )
             Spacer(Modifier.height(16.dp))
 
             if (stats.isEmpty()) {
-                Text(text = "No shooters tagged yet - completed runs with a shooter set will show up here")
+                Text(text = stringResource(R.string.no_shooters_yet))
             } else {
                 LazyColumn {
                     items(stats, key = { it.shooterName }) { shooter ->
@@ -69,9 +70,9 @@ private fun ShooterCard(stats: ShooterStats, onClick: () -> Unit) {
             Text(text = stats.shooterName, style = MaterialTheme.typography.titleSmall)
             Spacer(Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                StatColumn(label = "Runs", value = stats.runCount.toString())
-                StatColumn(label = "Best", value = formatElapsed(stats.bestTimeMillis))
-                StatColumn(label = "Average", value = formatElapsed(stats.avgTimeMillis.roundToLong()))
+                StatColumn(label = stringResource(R.string.stat_runs), value = stats.runCount.toString())
+                StatColumn(label = stringResource(R.string.stat_best), value = formatElapsed(stats.bestTimeMillis))
+                StatColumn(label = stringResource(R.string.stat_average), value = formatElapsed(stats.avgTimeMillis.roundToLong()))
             }
         }
     }

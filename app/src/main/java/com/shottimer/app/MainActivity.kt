@@ -1,8 +1,9 @@
-package com.shottimer.app
+﻿package com.shottimer.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
+import androidx.annotation.StringRes
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,6 +29,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.shottimer.app.auth.AuthState
@@ -41,12 +43,12 @@ import com.shottimer.app.timer.ShotTimerViewModel
 import com.shottimer.app.timer.TimerScreen
 import com.shottimer.app.ui.theme.ShotTimerTheme
 
-private enum class AppScreen(val label: String) {
-    TIMER("Timer"),
-    DRILLS("Drills"),
-    SHOOTERS("Shooters"),
-    HISTORY("History"),
-    SETTINGS("Settings")
+private enum class AppScreen(@StringRes val labelRes: Int) {
+    TIMER(R.string.tab_timer),
+    DRILLS(R.string.tab_drills),
+    SHOOTERS(R.string.tab_shooters),
+    HISTORY(R.string.tab_history),
+    SETTINGS(R.string.tab_settings)
 }
 
 class MainActivity : ComponentActivity() {
@@ -89,19 +91,19 @@ private fun AppRoot() {
                     selected = screen == AppScreen.TIMER,
                     onClick = { screen = AppScreen.TIMER },
                     icon = { Icon(Icons.Default.Timer, contentDescription = null) },
-                    label = { Text(AppScreen.TIMER.label) }
+                    label = { Text(stringResource(AppScreen.TIMER.labelRes)) }
                 )
                 NavigationBarItem(
                     selected = screen == AppScreen.DRILLS,
                     onClick = { screen = AppScreen.DRILLS },
                     icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
-                    label = { Text(AppScreen.DRILLS.label) }
+                    label = { Text(stringResource(AppScreen.DRILLS.labelRes)) }
                 )
                 NavigationBarItem(
                     selected = screen == AppScreen.SHOOTERS,
                     onClick = { screen = AppScreen.SHOOTERS },
                     icon = { Icon(Icons.Default.Groups, contentDescription = null) },
-                    label = { Text(AppScreen.SHOOTERS.label) }
+                    label = { Text(stringResource(AppScreen.SHOOTERS.labelRes)) }
                 )
                 NavigationBarItem(
                     selected = screen == AppScreen.HISTORY,
@@ -110,13 +112,13 @@ private fun AppRoot() {
                         screen = AppScreen.HISTORY
                     },
                     icon = { Icon(Icons.Default.History, contentDescription = null) },
-                    label = { Text(AppScreen.HISTORY.label) }
+                    label = { Text(stringResource(AppScreen.HISTORY.labelRes)) }
                 )
                 NavigationBarItem(
                     selected = screen == AppScreen.SETTINGS,
                     onClick = { screen = AppScreen.SETTINGS },
                     icon = { Icon(Icons.Default.Settings, contentDescription = null) },
-                    label = { Text(AppScreen.SETTINGS.label) }
+                    label = { Text(stringResource(AppScreen.SETTINGS.labelRes)) }
                 )
             }
         }
@@ -176,26 +178,20 @@ private fun FirstLaunchSignInPrompt(syncViewModel: SyncViewModel = viewModel()) 
             settingsRepository.markSignInPromptShown()
             showPrompt = false
         },
-        title = { Text("Back up your runs?") },
-        text = {
-            Text(
-                "Sign in with Google to keep your run history safe if you switch or lose your " +
-                    "phone. Entirely optional - the timer works fully offline, and you can " +
-                    "always sign in later from Settings."
-            )
-        },
+        title = { Text(stringResource(R.string.signin_prompt_title)) },
+        text = { Text(stringResource(R.string.signin_prompt_body)) },
         confirmButton = {
             TextButton(onClick = {
                 settingsRepository.markSignInPromptShown()
                 showPrompt = false
                 syncViewModel.signIn(context)
-            }) { Text("Sign in") }
+            }) { Text(stringResource(R.string.signin_prompt_confirm)) }
         },
         dismissButton = {
             TextButton(onClick = {
                 settingsRepository.markSignInPromptShown()
                 showPrompt = false
-            }) { Text("Not now") }
+            }) { Text(stringResource(R.string.signin_prompt_dismiss)) }
         }
     )
 }

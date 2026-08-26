@@ -14,7 +14,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.shottimer.app.R
 import com.shottimer.app.util.formatElapsed
 
 /**
@@ -33,20 +35,29 @@ fun RunSummaryView(
     Card(modifier = modifier) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                SummaryStat(label = "First Shot", value = metrics.firstShotMillis?.let(::formatElapsed) ?: "--")
-                SummaryStat(label = "Total Time", value = formatElapsed(metrics.totalElapsedMillis))
+                SummaryStat(
+                    label = stringResource(R.string.first_shot),
+                    value = metrics.firstShotMillis?.let(::formatElapsed) ?: "--"
+                )
+                SummaryStat(
+                    label = stringResource(R.string.total_time),
+                    value = formatElapsed(metrics.totalElapsedMillis)
+                )
             }
 
             Spacer(Modifier.height(20.dp))
             HorizontalDivider()
             Spacer(Modifier.height(12.dp))
 
-            val shotsTitle = "Shots (${metrics.splits.size}" +
-                (expectedRoundCount?.let { "/$it" } ?: "") + ")"
+            val shotsTitle = if (expectedRoundCount != null) {
+                stringResource(R.string.shots_count_expected, metrics.splits.size, expectedRoundCount)
+            } else {
+                stringResource(R.string.shots_count, metrics.splits.size)
+            }
             Text(text = shotsTitle, style = MaterialTheme.typography.titleSmall)
             Spacer(Modifier.height(4.dp))
             if (metrics.splits.isEmpty()) {
-                Text(text = "No shots detected yet", style = MaterialTheme.typography.bodyMedium)
+                Text(text = stringResource(R.string.no_shots_yet), style = MaterialTheme.typography.bodyMedium)
             } else {
                 metrics.splits.forEach { split ->
                     ShotRow(split)
@@ -64,7 +75,7 @@ private fun ShotRow(split: ShotSplit) {
             .padding(vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = "Shot ${split.shotNumber}")
+        Text(text = stringResource(R.string.shot_n, split.shotNumber))
         Text(text = formatElapsed(split.elapsedMillis))
         Text(
             text = "+${formatElapsed(split.splitMillis)}",

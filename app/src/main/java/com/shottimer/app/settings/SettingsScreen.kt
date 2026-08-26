@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -40,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.appdistribution.FirebaseAppDistribution
 import com.shottimer.app.BuildConfig
+import com.shottimer.app.R
 import com.shottimer.app.audio.MicTestScreen
 import com.shottimer.app.auth.AuthState
 import com.shottimer.app.sync.BackupScreen
@@ -71,7 +73,7 @@ fun SettingsScreen(
     val syncViewModel: SyncViewModel = viewModel()
     val authState by syncViewModel.authState.collectAsStateWithLifecycle()
 
-    ScreenScaffold(title = "Settings", modifier = modifier) {
+    ScreenScaffold(title = stringResource(R.string.tab_settings), modifier = modifier) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -79,18 +81,18 @@ fun SettingsScreen(
             .padding(horizontal = 16.dp)
     ) {
         Text(
-            text = "These are defaults for new runs - changes don't affect a run already in progress.",
+            text = stringResource(R.string.settings_desc),
             style = MaterialTheme.typography.bodySmall
         )
 
         var showSensitivityHelp by remember { mutableStateOf(false) }
         SettingSection(
-            title = "Default sensitivity: ${(settings.defaultSensitivity * 100).toInt()}%",
+            title = stringResource(R.string.default_sensitivity_pct, (settings.defaultSensitivity * 100).toInt()),
             titleTrailing = {
                 // Default IconButton size (48dp) - a previous size(24.dp) shrank the touch
                 // target below the accessibility minimum.
                 IconButton(onClick = { showSensitivityHelp = !showSensitivityHelp }) {
-                    Icon(Icons.Default.Info, contentDescription = "How does sensitivity work?")
+                    Icon(Icons.Default.Info, contentDescription = stringResource(R.string.sensitivity_help_cd))
                 }
             }
         ) {
@@ -101,10 +103,7 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Higher sensitivity picks up quieter sounds - turn it up if shots " +
-                            "aren't being detected. Lower sensitivity needs a louder sound to " +
-                            "trigger - turn it down if background noise or handling the gun/phone " +
-                            "is causing false detections.",
+                        text = stringResource(R.string.sensitivity_help_body),
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(12.dp)
                     )
@@ -118,23 +117,23 @@ fun SettingsScreen(
             )
         }
 
-        SettingSection(title = "Echo lockout") {
+        SettingSection(title = stringResource(R.string.echo_lockout_title)) {
             Text(
-                text = "How long after a detected shot to ignore further sound - filters out echoes/reverb without missing a genuinely fast next shot. $MIN_ECHO_LOCKOUT_MS-$MAX_ECHO_LOCKOUT_MS ms.",
+                text = stringResource(R.string.echo_lockout_desc, MIN_ECHO_LOCKOUT_MS, MAX_ECHO_LOCKOUT_MS),
                 style = MaterialTheme.typography.bodySmall
             )
             IntegerField(
-                label = "Lockout (ms)",
+                label = stringResource(R.string.lockout_ms_label),
                 value = settings.echoLockoutMs,
                 onValueChange = viewModel::setEchoLockoutMs
             )
         }
 
         SettingSection(
-            title = "Random delay: %.1f-%.1fs".format(settings.minDelaySeconds, settings.maxDelaySeconds)
+            title = stringResource(R.string.random_delay_title, settings.minDelaySeconds, settings.maxDelaySeconds)
         ) {
             Text(
-                text = "Range for the random pause between pressing Start and the beep.",
+                text = stringResource(R.string.random_delay_desc),
                 style = MaterialTheme.typography.bodySmall
             )
             // One two-thumb slider instead of the old Min/Max decimal text fields - expresses
@@ -147,9 +146,9 @@ fun SettingsScreen(
             )
         }
 
-        SettingSection(title = "Beep volume: ${(settings.beepVolume * 100).toInt()}%") {
+        SettingSection(title = stringResource(R.string.beep_volume_pct, (settings.beepVolume * 100).toInt())) {
             Text(
-                text = "Relative to your phone's Alarm volume, which the beep also depends on.",
+                text = stringResource(R.string.beep_volume_desc),
                 style = MaterialTheme.typography.bodySmall
             )
             Slider(
@@ -162,20 +161,23 @@ fun SettingsScreen(
         Card(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
             ListItem(
                 modifier = Modifier.clickable { showMicTest = true },
-                headlineContent = { Text("Mic Test") },
-                supportingContent = { Text("Check microphone capture levels") }
+                headlineContent = { Text(stringResource(R.string.mic_test)) },
+                supportingContent = { Text(stringResource(R.string.mic_test_desc)) }
             )
         }
 
         Card(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
             ListItem(
                 modifier = Modifier.clickable { showBackup = true },
-                headlineContent = { Text("Back up to Google") },
+                headlineContent = { Text(stringResource(R.string.backup_title)) },
                 supportingContent = {
                     Text(
                         when (val state = authState) {
-                            is AuthState.SignedOut -> "Not signed in"
-                            is AuthState.SignedIn -> "Signed in as ${state.email ?: state.displayName ?: "your account"}"
+                            is AuthState.SignedOut -> stringResource(R.string.not_signed_in)
+                            is AuthState.SignedIn -> stringResource(
+                                R.string.signed_in_as,
+                                state.email ?: state.displayName ?: state.uid
+                            )
                         }
                     )
                 }
@@ -188,10 +190,10 @@ fun SettingsScreen(
             Card(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
                 ListItem(
                     modifier = Modifier.clickable {
-                        FirebaseAppDistribution.getInstance().startFeedback("What's going on?")
+                        FirebaseAppDistribution.getInstance().startFeedback(R.string.feedback_prompt)
                     },
-                    headlineContent = { Text("Send Feedback") },
-                    supportingContent = { Text("Report a bug or issue with this test build") }
+                    headlineContent = { Text(stringResource(R.string.send_feedback)) },
+                    supportingContent = { Text(stringResource(R.string.send_feedback_desc)) }
                 )
             }
         }

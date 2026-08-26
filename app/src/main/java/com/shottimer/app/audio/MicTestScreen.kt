@@ -19,9 +19,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.shottimer.app.R
 import com.shottimer.app.permission.OpenAppSettingsButton
 import com.shottimer.app.permission.rememberMicPermissionState
 import com.shottimer.app.ui.ScreenScaffold
@@ -40,7 +42,7 @@ fun MicTestScreen(
     val isListening by viewModel.isListening.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
-    ScreenScaffold(title = "Mic Test", modifier = modifier, onBack = onBack) {
+    ScreenScaffold(title = stringResource(R.string.mic_test), modifier = modifier, onBack = onBack) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -65,12 +67,12 @@ fun MicTestScreen(
         when {
             !micPermission.isGranted && micPermission.isPermanentlyDenied -> OpenAppSettingsButton()
             !micPermission.isGranted -> {
-                Text(text = "Microphone permission is required to test capture.")
+                Text(text = stringResource(R.string.mic_permission_required))
                 Spacer(Modifier.height(8.dp))
-                Button(onClick = micPermission.request) { Text("Grant microphone permission") }
+                Button(onClick = micPermission.request) { Text(stringResource(R.string.grant_mic)) }
             }
-            isListening -> Button(onClick = viewModel::stopListening) { Text("Stop listening") }
-            else -> Button(onClick = viewModel::startListening) { Text("Start listening") }
+            isListening -> Button(onClick = viewModel::stopListening) { Text(stringResource(R.string.stop_listening)) }
+            else -> Button(onClick = viewModel::startListening) { Text(stringResource(R.string.start_listening)) }
         }
     }
     }

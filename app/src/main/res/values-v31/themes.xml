@@ -1,0 +1,9 @@
+<resources>
+    <!-- Android 12+ draws its own launch splash whose background comes from
+         windowSplashScreenBackground, not windowBackground - without this the splash is still
+         white over a permanently dark app (the same flash the base theme fix addressed). -->
+    <style name="Theme.ShotTimer" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#FF141414</item>
+        <item name="android:windowSplashScreenBackground">#FF141414</item>
+    </style>
+</resources>

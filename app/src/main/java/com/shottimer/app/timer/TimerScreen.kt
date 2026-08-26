@@ -40,12 +40,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.annotation.StringRes
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.shottimer.app.R
 import com.shottimer.app.permission.OpenAppSettingsButton
 import com.shottimer.app.permission.rememberMicPermissionState
 import com.shottimer.app.results.RunSummaryView
@@ -73,7 +76,7 @@ fun TimerScreen(
         onDispose { view.keepScreenOn = false }
     }
 
-    ScreenScaffold(title = "Timer", modifier = modifier) {
+    ScreenScaffold(title = stringResource(R.string.tab_timer), modifier = modifier) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -88,7 +91,7 @@ fun TimerScreen(
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(text = statusText(uiState.runState), style = MaterialTheme.typography.titleMedium)
+                    Text(text = stringResource(statusTextRes(uiState.runState)), style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(8.dp))
                     Text(text = formatElapsed(uiState.elapsedMillis), style = MaterialTheme.typography.displayLarge)
                 }
@@ -112,18 +115,18 @@ fun TimerScreen(
                         selected = true,
                         onClick = { viewModel.selectDrill(null) },
                         label = { Text(drill.name) },
-                        trailingIcon = { Icon(Icons.Default.Close, contentDescription = "Clear drill") }
+                        trailingIcon = { Icon(Icons.Default.Close, contentDescription = stringResource(R.string.clear_drill)) }
                     )
                 }
                 InputChip(
                     selected = uiState.selectedShooter != null,
                     onClick = { showShooterPicker = true },
-                    label = { Text(uiState.selectedShooter ?: "Tag shooter") },
+                    label = { Text(uiState.selectedShooter ?: stringResource(R.string.tag_shooter)) },
                     leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) }
                 )
                 AssistChip(
                     onClick = { showRunOptions = true },
-                    label = { Text("Options") },
+                    label = { Text(stringResource(R.string.run_options_chip)) },
                     leadingIcon = { Icon(Icons.Default.Tune, contentDescription = null) }
                 )
             }
@@ -136,17 +139,17 @@ fun TimerScreen(
             when {
                 !micPermission.isGranted && micPermission.isPermanentlyDenied -> OpenAppSettingsButton()
                 !micPermission.isGranted -> Button(onClick = micPermission.request, modifier = bigButton) {
-                    Text("Grant microphone permission to start")
+                    Text(stringResource(R.string.grant_mic_to_start))
                 }
                 uiState.runState == RunState.IDLE || uiState.runState == RunState.STOPPED ->
                     Button(onClick = viewModel::start, modifier = bigButton) {
-                        Text("Start", style = MaterialTheme.typography.titleLarge)
+                        Text(stringResource(R.string.start), style = MaterialTheme.typography.titleLarge)
                     }
                 else -> Button(
                     onClick = viewModel::stop,
                     modifier = bigButton,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) { Text("Stop", style = MaterialTheme.typography.titleLarge) }
+                ) { Text(stringResource(R.string.stop), style = MaterialTheme.typography.titleLarge) }
             }
 
             Spacer(Modifier.height(24.dp))
@@ -197,14 +200,14 @@ private fun RunOptionsSheet(
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ) {
         Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
-            Text(text = "Run options", style = MaterialTheme.typography.titleMedium)
+            Text(text = stringResource(R.string.run_options_title), style = MaterialTheme.typography.titleMedium)
             Text(
-                text = "Apply to this run only - defaults live in Settings.",
+                text = stringResource(R.string.run_options_subtitle),
                 style = MaterialTheme.typography.bodySmall
             )
             Spacer(Modifier.height(16.dp))
 
-            Text(text = "Sensitivity: ${(uiState.sensitivity * 100).toInt()}%")
+            Text(text = stringResource(R.string.sensitivity_pct, (uiState.sensitivity * 100).toInt()))
             Slider(
                 value = uiState.sensitivity,
                 onValueChange = onSensitivityChange,
@@ -217,11 +220,11 @@ private fun RunOptionsSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "Par time")
+                Text(text = stringResource(R.string.par_time))
                 Switch(checked = uiState.parTimeEnabled, onCheckedChange = onParTimeEnabledChange)
             }
             if (uiState.parTimeEnabled) {
-                Text(text = "Par: %.1fs".format(uiState.parTimeSeconds))
+                Text(text = stringResource(R.string.par_seconds, uiState.parTimeSeconds))
                 Slider(
                     value = uiState.parTimeSeconds,
                     onValueChange = onParTimeSecondsChange,
@@ -246,20 +249,20 @@ private fun ShooterPickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Set shooter") },
+        title = { Text(stringResource(R.string.set_shooter)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    label = { Text("Name") },
+                    label = { Text(stringResource(R.string.shooter_name_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 if (knownShooters.isNotEmpty()) {
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        text = "Or pick someone you've timed before:",
+                        text = stringResource(R.string.pick_previous_shooter),
                         style = MaterialTheme.typography.bodySmall
                     )
                     Column(
@@ -286,17 +289,18 @@ private fun ShooterPickerDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSelect(text) }) { Text("Set") }
+            TextButton(onClick = { onSelect(text) }) { Text(stringResource(R.string.set)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         }
     )
 }
 
-private fun statusText(state: RunState): String = when (state) {
-    RunState.IDLE -> "Ready"
-    RunState.ARMED_WAITING -> "Stand by…"
-    RunState.RUNNING -> "GO"
-    RunState.STOPPED -> "Stopped"
+@StringRes
+private fun statusTextRes(state: RunState): Int = when (state) {
+    RunState.IDLE -> R.string.status_ready
+    RunState.ARMED_WAITING -> R.string.status_standby
+    RunState.RUNNING -> R.string.status_go
+    RunState.STOPPED -> R.string.status_stopped
 }

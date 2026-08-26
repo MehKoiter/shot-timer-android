@@ -20,9 +20,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.shottimer.app.R
 import com.shottimer.app.auth.AuthState
 import com.shottimer.app.ui.ScreenScaffold
 import java.time.Instant
@@ -47,7 +49,7 @@ fun BackupScreen(
     val signInError by viewModel.signInError.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    ScreenScaffold(title = "Back up to Google", modifier = modifier, onBack = onBack) {
+    ScreenScaffold(title = stringResource(R.string.backup_title), modifier = modifier, onBack = onBack) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -72,13 +74,11 @@ fun BackupScreen(
 @Composable
 private fun SignedOutContent(signInError: String?, onSignIn: () -> Unit) {
     Text(
-        text = "Sign in with your Google account to back up your run history to the cloud. " +
-            "This is entirely optional - the app keeps working fully offline if you never " +
-            "sign in, and everything you've already recorded stays right where it is.",
+        text = stringResource(R.string.backup_explainer),
         style = MaterialTheme.typography.bodyMedium
     )
     Spacer(Modifier.height(24.dp))
-    Button(onClick = onSignIn) { Text("Sign in with Google") }
+    Button(onClick = onSignIn) { Text(stringResource(R.string.signin_google)) }
 
     if (signInError != null) {
         Spacer(Modifier.height(16.dp))
@@ -93,16 +93,22 @@ private fun SignedInContent(
     onSyncNow: () -> Unit,
     onSignOut: () -> Unit
 ) {
-    Text(text = "Signed in as ${state.email ?: state.displayName ?: state.uid}", style = MaterialTheme.typography.bodyMedium)
+    Text(
+        text = stringResource(R.string.signed_in_as, state.email ?: state.displayName ?: state.uid),
+        style = MaterialTheme.typography.bodyMedium
+    )
     Spacer(Modifier.height(8.dp))
     Text(
-        text = "Last synced: ${syncStatus.lastSyncedAtEpochMillis?.let { formatTimestamp(it) } ?: "Never"}",
+        text = stringResource(
+            R.string.last_synced,
+            syncStatus.lastSyncedAtEpochMillis?.let { formatTimestamp(it) } ?: stringResource(R.string.never)
+        ),
         style = MaterialTheme.typography.bodyMedium
     )
     Spacer(Modifier.height(16.dp))
 
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Button(onClick = onSyncNow, enabled = !syncStatus.isSyncing) { Text("Sync now") }
+        Button(onClick = onSyncNow, enabled = !syncStatus.isSyncing) { Text(stringResource(R.string.sync_now)) }
         if (syncStatus.isSyncing) {
             Spacer(Modifier.width(12.dp))
             CircularProgressIndicator(modifier = Modifier.size(20.dp))
@@ -117,14 +123,12 @@ private fun SignedInContent(
     Spacer(Modifier.height(24.dp))
     Card(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = "Note: deleting a run on this device only removes it locally. It may still " +
-                "exist in the cloud and could reappear here if you sync again on this or " +
-                "another device.",
+            text = stringResource(R.string.cloud_delete_note),
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(12.dp)
         )
     }
 
     Spacer(Modifier.height(24.dp))
-    OutlinedButton(onClick = onSignOut) { Text("Sign out") }
+    OutlinedButton(onClick = onSignOut) { Text(stringResource(R.string.sign_out)) }
 }

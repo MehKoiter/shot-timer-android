@@ -16,8 +16,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.shottimer.app.R
 
 data class MicPermissionState(
     val isGranted: Boolean,
@@ -70,14 +72,15 @@ fun rememberMicPermissionState(onGranted: () -> Unit = {}): MicPermissionState {
 }
 
 @Composable
-fun OpenAppSettingsButton(label: String = "Open app settings to enable microphone") {
+fun OpenAppSettingsButton(label: String? = null) {
     val context = LocalContext.current
+    val buttonLabel = label ?: stringResource(R.string.open_app_settings_mic)
     Button(onClick = {
         val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
             data = Uri.fromParts("package", context.packageName, null)
         }
         context.startActivity(intent)
     }) {
-        Text(label)
+        Text(buttonLabel)
     }
 }

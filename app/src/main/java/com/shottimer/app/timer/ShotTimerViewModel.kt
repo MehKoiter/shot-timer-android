@@ -9,6 +9,7 @@ import android.os.SystemClock
 import androidx.annotation.RequiresPermission
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.shottimer.app.R
 import com.shottimer.app.audio.AudioSource
 import com.shottimer.app.data.RunEntity
 import com.shottimer.app.data.RunRepository
@@ -240,7 +241,7 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
             // AudioRecord failed to initialize (mic busy/unavailable) - surface it instead of the
             // whole app crashing from an uncaught exception in this coroutine.
             _uiState.update {
-                it.copy(micErrorMessage = "Microphone unavailable - shot detection stopped for this run")
+                it.copy(micErrorMessage = getApplication<Application>().getString(R.string.mic_unavailable))
             }
         }
     }

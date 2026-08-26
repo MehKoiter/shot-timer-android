@@ -14,7 +14,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.shottimer.app.R
 import com.shottimer.app.ui.ScreenScaffold
 
 @Composable
@@ -22,7 +24,7 @@ fun DrillsScreen(
     onStartDrill: (Drill) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    ScreenScaffold(title = "Drills", modifier = modifier) {
+    ScreenScaffold(title = stringResource(R.string.tab_drills), modifier = modifier) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -30,9 +32,7 @@ fun DrillsScreen(
                 .padding(horizontal = 16.dp)
         ) {
             Text(
-                text = "Classic timed drills. Starting one loads the Timer screen with its round " +
-                    "count so you can see your progress live - hit verification (zone, head shot, " +
-                    "etc.) is on you and the target, the app only times and counts shots.",
+                text = stringResource(R.string.drills_desc),
                 style = MaterialTheme.typography.bodySmall
             )
 
@@ -52,9 +52,9 @@ private fun DrillCard(drill: Drill, onStart: () -> Unit) {
             Spacer(Modifier.height(8.dp))
             Text(text = drill.instructions, style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.height(8.dp))
-            Text(text = "${drill.roundCount} rounds", style = MaterialTheme.typography.labelMedium)
+            Text(text = stringResource(R.string.drill_rounds, drill.roundCount), style = MaterialTheme.typography.labelMedium)
             Spacer(Modifier.height(12.dp))
-            OutlinedButton(onClick = onStart) { Text("Start this drill") }
+            OutlinedButton(onClick = onStart) { Text(stringResource(R.string.start_this_drill)) }
         }
     }
 }

@@ -37,9 +37,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.shottimer.app.R
 import com.shottimer.app.data.RunEntity
 import com.shottimer.app.results.RunSummaryView
 import com.shottimer.app.ui.ScreenScaffold
@@ -72,13 +74,16 @@ fun HistoryScreen(
 
     // Delete immediately and offer Undo via snackbar instead of a confirm dialog - one tap for
     // the common case, and a mistake is recoverable for the few seconds the snackbar shows.
+    // Resolved here, not inside the coroutine - showSnackbar runs outside composition.
+    val runDeletedMessage = stringResource(R.string.run_deleted)
+    val undoLabel = stringResource(R.string.undo)
     val deleteWithUndo: (RunEntity) -> Unit = { run ->
         viewModel.deleteRun(run)
         selectedRunId = null
         scope.launch {
             val result = snackbarHostState.showSnackbar(
-                message = "Run deleted",
-                actionLabel = "Undo",
+                message = runDeletedMessage,
+                actionLabel = undoLabel,
                 duration = SnackbarDuration.Short
             )
             if (result == SnackbarResult.ActionPerformed) {
@@ -147,15 +152,15 @@ private fun RunList(
         }
     }
 
-    ScreenScaffold(title = "History", modifier = modifier) {
+    ScreenScaffold(title = stringResource(R.string.tab_history), modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             if (runs.isEmpty()) {
-                Text(text = "No runs yet - completed runs from the Timer tab will show up here")
+                Text(text = stringResource(R.string.no_runs_yet))
             } else {
-                Text(text = "Drill", style = MaterialTheme.typography.labelMedium)
+                Text(text = stringResource(R.string.filter_drill), style = MaterialTheme.typography.labelMedium)
                 CategoryFilterRow(categories = categories, selected = selectedCategory, onSelect = { selectedCategory = it })
                 Spacer(Modifier.height(8.dp))
-                Text(text = "Shooter", style = MaterialTheme.typography.labelMedium)
+                Text(text = stringResource(R.string.filter_shooter), style = MaterialTheme.typography.labelMedium)
                 CategoryFilterRow(categories = shooters, selected = selectedShooter, onSelect = { selectedShooter = it })
                 Spacer(Modifier.height(8.dp))
 
@@ -178,7 +183,18 @@ private fun CategoryFilterRow(categories: List<String?>, selected: String?, onSe
             FilterChip(
                 selected = selected == category,
                 onClick = { onSelect(category) },
-                label = { Text(category ?: "All") }
+                label = {
+                    // The sentinel constants stay as internal match keys (they're compared
+                    // against DB values); only their display goes through resources.
+                    Text(
+                        when (category) {
+                            null -> stringResource(R.string.filter_all)
+                            PRACTICE_CATEGORY -> stringResource(R.string.filter_practice)
+                            UNASSIGNED_SHOOTER -> stringResource(R.string.filter_unassigned)
+                            else -> category
+                        }
+                    )
+                }
             )
         }
     }
@@ -186,10 +202,10 @@ private fun CategoryFilterRow(categories: List<String?>, selected: String?, onSe
 
 @Composable
 private fun RunRow(run: RunEntity, onClick: () -> Unit) {
-    val detail = "${run.shotTimestampsMillis.size} shots" +
+    val detail = stringResource(R.string.run_shots, run.shotTimestampsMillis.size) +
         (run.drillName?.let { "  ·  $it" } ?: "") +
         (run.shooterName?.let { "  ·  $it" } ?: "") +
-        (run.parTimeSeconds?.let { "  ·  Par %.1fs".format(it) } ?: "")
+        (run.parTimeSeconds?.let { "  ·  " + stringResource(R.string.par_short, it) } ?: "")
 
     ListItem(
         modifier = Modifier
@@ -219,7 +235,7 @@ private fun RunDetail(
             IconButton(onClick = { onDelete(run) }) {
                 Icon(
                     Icons.Default.Delete,
-                    contentDescription = "Delete run",
+                    contentDescription = stringResource(R.string.delete_run),
                     tint = MaterialTheme.colorScheme.error
                 )
             }
