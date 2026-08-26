@@ -79,8 +79,13 @@ function buildIssueTitle(text) {
   return `Tester feedback: ${snippet}`;
 }
 
-/** Builds the markdown body for the GitHub issue. */
-function buildIssueBody({ text, testerName, testerEmail, appVersion, feedbackConsoleUri, screenshotUrl }) {
+/**
+ * Builds the markdown body for the GitHub issue. Deliberately excludes tester name/email:
+ * this repo is public, and publishing a tester's real identity in a public issue would expose
+ * PII they never consented to having posted publicly. Anyone with Firebase project access can
+ * still see who submitted it via the console link below.
+ */
+function buildIssueBody({ text, appVersion, feedbackConsoleUri, screenshotUrl }) {
   const lines = [];
 
   lines.push("## Tester feedback");
@@ -89,7 +94,6 @@ function buildIssueBody({ text, testerName, testerEmail, appVersion, feedbackCon
   lines.push("");
   lines.push("---");
   lines.push("");
-  lines.push(`**Tester:** ${testerName ? `${testerName} ` : ""}${testerEmail ? `<${testerEmail}>` : "(unknown)"}`);
   lines.push(`**App version:** ${appVersion || "(unknown)"}`);
 
   if (screenshotUrl) {
@@ -101,7 +105,9 @@ function buildIssueBody({ text, testerName, testerEmail, appVersion, feedbackCon
 
   if (feedbackConsoleUri) {
     lines.push("");
-    lines.push(`[View original feedback in the Firebase console](${feedbackConsoleUri})`);
+    lines.push(
+      `[View original feedback in the Firebase console](${feedbackConsoleUri}) (tester identity is visible there, to project owners only)`
+    );
   }
 
   return lines.join("\n");
@@ -112,15 +118,13 @@ export const mirrorTesterFeedbackToGithub = onInAppFeedbackPublished(
   async (event) => {
     try {
       const payload = event.data.payload;
-      const { text, testerEmail, testerName, appVersion, screenshotUri, feedbackConsoleUri } = payload;
+      const { text, appVersion, screenshotUri, feedbackConsoleUri } = payload;
 
       const screenshotUrl = await getScreenshotSignedUrl(screenshotUri);
 
       const title = buildIssueTitle(text);
       const body = buildIssueBody({
         text,
-        testerName,
-        testerEmail,
         appVersion,
         feedbackConsoleUri,
         screenshotUrl,
