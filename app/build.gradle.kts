@@ -29,9 +29,9 @@ android {
             // developer's own local debug installs only in intent - same variant, since the
             // full App Distribution SDK (shake-to-report) below is already gated to debug-only.
             firebaseAppDistribution {
-                releaseNotes = "Tap a shooter on the Shooters tab to jump straight to their " +
-                    "run history. Random delay in Settings is now a two-thumb slider instead " +
-                    "of typing numbers. Includes everything from 0.2.4 if you skipped it."
+                releaseNotes = "Same as 0.2.5 (tap a shooter for their run history, random " +
+                    "delay slider) plus: deleting a run now shows an Undo option instead of " +
+                    "a confirm dialog. Welcome aboard George!"
                 testers = "lymberkyle@gmail.com,jess54191@gmail.com,georgepace8@gmail.com"
             }
         }
