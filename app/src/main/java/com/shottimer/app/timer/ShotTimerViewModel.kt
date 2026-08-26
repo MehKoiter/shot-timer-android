@@ -10,6 +10,7 @@ import androidx.annotation.RequiresPermission
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.shottimer.app.R
+import com.shottimer.app.audio.AudioChunk
 import com.shottimer.app.audio.AudioSource
 import com.shottimer.app.data.RunEntity
 import com.shottimer.app.data.RunRepository
@@ -24,6 +25,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -73,7 +75,23 @@ private const val MAX_THRESHOLD_AMPLITUDE = 0.9f
 private fun thresholdFor(sensitivity: Float): Float =
     MAX_THRESHOLD_AMPLITUDE - sensitivity.coerceIn(0f, 1f) * (MAX_THRESHOLD_AMPLITUDE - MIN_THRESHOLD_AMPLITUDE)
 
-class ShotTimerViewModel(application: Application) : AndroidViewModel(application) {
+/**
+ * [audioChunks] and [playTone] default to the real microphone/speaker but are injectable seams so
+ * tests can feed synthetic [AudioChunk]s and skip real AudioTrack playback (which blocks
+ * indefinitely under Robolectric's audio shadow) without RECORD_AUDIO or real hardware -
+ * @JvmOverloads keeps the single-arg `ShotTimerViewModel(Application)` constructor that
+ * ViewModelProvider's reflection looks up, so production construction (`viewModel()`) is
+ * unaffected. Losing the compile-time @RequiresPermission check on the audioChunks call site is
+ * the traded-off cost; start() still carries it.
+ */
+class ShotTimerViewModel @JvmOverloads constructor(
+    application: Application,
+    private val audioChunks: () -> Flow<AudioChunk> = { AudioSource().chunks() },
+    // Null (not a lambda default) because a default constructor-parameter expression can't
+    // reference an instance member (playToneWithAudioTrack) - resolved to the real
+    // implementation lazily in playToneEffect() instead, where `this` is fully available.
+    private val playTone: ((samples: ShortArray, volume: Float) -> Unit)? = null
+) : AndroidViewModel(application) {
 
     // Synthesized in-code rather than a ToneGenerator system tone or a bundled asset: ToneGenerator's
     // legacy CDMA tones are silent on some GSM-only devices (no tone table shipped), and this way the
@@ -81,7 +99,6 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
     private val startBeepSamples: ShortArray = buildBeepSamples(START_BEEP_FREQUENCY_HZ)
     private val parBeepSamples: ShortArray = buildBeepSamples(PAR_BEEP_FREQUENCY_HZ)
 
-    private val audioSource = AudioSource()
     private val runRepository = RunRepository(application)
     private val settingsRepository = SettingsRepository.getInstance(application)
 
@@ -124,7 +141,7 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
             val minDelayMs = (settings.minDelaySeconds * 1000).toLong()
             val maxDelayMs = (settings.maxDelaySeconds * 1000).toLong()
             delay(Random.nextLong(minDelayMs, maxDelayMs + 1))
-            playTone(startBeepSamples, settings.beepVolume)
+            playToneEffect(startBeepSamples, settings.beepVolume)
             startMarkNanos = SystemClock.elapsedRealtimeNanos()
             suppressUntilNanos = startMarkNanos + (BEEP_DURATION_MS + 50) * 1_000_000L
             _uiState.update { it.copy(runState = RunState.RUNNING) }
@@ -207,7 +224,7 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
     private fun schedulePar(parTimeSeconds: Float, beepVolume: Float) {
         parJob = viewModelScope.launch {
             delay((parTimeSeconds * 1000).toLong())
-            playTone(parBeepSamples, beepVolume)
+            playToneEffect(parBeepSamples, beepVolume)
             stop()
         }
     }
@@ -220,10 +237,12 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    // Kept as documentation: audioChunks() defaults to a real mic source that requires this,
+    // but the lambda call itself isn't lint-checkable the way audioSource.chunks() was.
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     private suspend fun detectShots(detector: ShotDetector) {
         try {
-            audioSource.chunks().collect { chunk ->
+            audioChunks().collect { chunk ->
                 // Drop audio captured while armed-waiting or during the start beep itself, so the
                 // detector never sees it - keeps its internal echo-lockout state clean and stops
                 // the beep from being mistaken for shot #1 or from tripping the lockout and
@@ -246,7 +265,11 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    private fun playTone(samples: ShortArray, volume: Float) {
+    private fun playToneEffect(samples: ShortArray, volume: Float) {
+        (playTone ?: ::playToneWithAudioTrack)(samples, volume)
+    }
+
+    private fun playToneWithAudioTrack(samples: ShortArray, volume: Float) {
         val track = AudioTrack.Builder()
             .setAudioAttributes(
                 AudioAttributes.Builder()

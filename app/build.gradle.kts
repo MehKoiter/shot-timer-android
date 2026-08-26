@@ -66,6 +66,15 @@ android {
         // fails looking for it in test assets.
         getByName("androidTest").assets.srcDirs("$projectDir/schemas")
     }
+
+    testOptions {
+        unitTests {
+            // ViewModels under test call getString()/getQuantityString() on the real
+            // Application context (via Robolectric) - without this they'd get a blank
+            // ShadowAssetManager and every string resource would resolve to "".
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 dependencies {
@@ -107,6 +116,12 @@ dependencies {
     debugImplementation("com.google.firebase:firebase-appdistribution:16.0.0-beta20")
 
     testImplementation("junit:junit:4.13.2")
+    // ViewModel/DAO unit tests run against a real (Robolectric-shadowed) Application context and
+    // Room/SharedPreferences, rather than an emulator - keeps them part of `testDebugUnitTest`.
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("androidx.test:core:1.6.1")
+    testImplementation("androidx.test.ext:junit:1.2.1")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
 
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.09.03"))
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
