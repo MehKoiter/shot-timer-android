@@ -1,9 +1,12 @@
+import com.google.firebase.appdistribution.gradle.firebaseAppDistribution
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.kapt")
     id("com.google.gms.google-services")
+    id("com.google.firebase.appdistribution")
 }
 
 android {
@@ -21,6 +24,15 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Builds handed to testers via Firebase App Distribution. Kept separate from the
+            // developer's own local debug installs only in intent - same variant, since the
+            // full App Distribution SDK (shake-to-report) below is already gated to debug-only.
+            firebaseAppDistribution {
+                releaseNotes = "Test build for feedback."
+                testers = "lymberkyle@gmail.com"
+            }
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
@@ -80,6 +92,14 @@ dependencies {
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
+
+    // Firebase App Distribution: builds handed to testers, plus shake-to-report feedback.
+    // The full SDK (feedback UI, self-update checks) is debug-only per Google's own warning
+    // that shipping it in a Play Store release can get the app removed from Play; the -api
+    // artifact alone is safe for all variants but isn't needed outside debug here since
+    // nothing else in the app calls it.
+    implementation("com.google.firebase:firebase-appdistribution-api:16.0.0-beta20")
+    debugImplementation("com.google.firebase:firebase-appdistribution:16.0.0-beta20")
 
     testImplementation("junit:junit:4.13.2")
 
