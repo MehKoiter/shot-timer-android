@@ -29,10 +29,8 @@ android {
             // developer's own local debug installs only in intent - same variant, since the
             // full App Distribution SDK (shake-to-report) below is already gated to debug-only.
             firebaseAppDistribution {
-                releaseNotes = "Big one: create your own drills (+ button on Drills, which " +
-                    "is now a tap-to-expand list), edit/rename/remove shooters from their " +
-                    "cards, share a run or export everything as CSV from History, and each " +
-                    "shooter now shows a trend line of their recent runs."
+                releaseNotes = "Same as 0.3.0 (custom drills, tap-to-expand drill list, " +
+                    "shooter rename/remove, share/export runs, trend lines). Welcome aboard!"
                 testers = "lymberkyle@gmail.com,jess54191@gmail.com,georgepace8@gmail.com,jrugjr@gmail.com"
             }
         }
