@@ -37,6 +37,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.firebase.appdistribution.FirebaseAppDistribution
+import com.shottimer.app.BuildConfig
 import com.shottimer.app.audio.MicTestScreen
 import com.shottimer.app.auth.AuthState
 import com.shottimer.app.sync.BackupScreen
@@ -180,6 +182,20 @@ fun SettingsScreen(
                     )
                 }
             )
+        }
+
+        // Test-build only: lets a tester report a bug without needing to remember/notice that
+        // shaking the phone works too (see ShakeFeedbackDetector). Same trigger under the hood.
+        if (BuildConfig.DEBUG) {
+            Card(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
+                ListItem(
+                    modifier = Modifier.clickable {
+                        FirebaseAppDistribution.getInstance().startFeedback("What's going on?")
+                    },
+                    headlineContent = { Text("Send Feedback") },
+                    supportingContent = { Text("Report a bug or issue with this test build") }
+                )
+            }
         }
     }
 }

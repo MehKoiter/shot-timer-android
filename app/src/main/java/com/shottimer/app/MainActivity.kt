@@ -18,13 +18,19 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.shottimer.app.drills.DrillsScreen
+import com.shottimer.app.feedback.ShakeFeedbackDetector
 import com.shottimer.app.history.HistoryScreen
 import com.shottimer.app.settings.SettingsScreen
 import com.shottimer.app.shooters.ShootersScreen
@@ -56,6 +62,27 @@ class MainActivity : ComponentActivity() {
 private fun AppRoot() {
     var screen by remember { mutableStateOf(AppScreen.TIMER) }
     val shotTimerViewModel: ShotTimerViewModel = viewModel()
+
+    // Shake-to-report: lets a tester shake the phone to pop the Firebase App Distribution
+    // feedback UI from wherever they are in the app. No-op in release builds - see
+    // ShakeFeedbackDetector's own BuildConfig.DEBUG gating.
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(context, lifecycleOwner) {
+        val shakeDetector = ShakeFeedbackDetector(context)
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> shakeDetector.start()
+                Lifecycle.Event.ON_PAUSE -> shakeDetector.stop()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            shakeDetector.stop()
+        }
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
