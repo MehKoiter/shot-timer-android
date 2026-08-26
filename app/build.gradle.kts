@@ -17,8 +17,8 @@ android {
         applicationId = "com.shottimer.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.2.2"
+        versionCode = 5
+        versionName = "0.2.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -29,7 +29,9 @@ android {
             // developer's own local debug installs only in intent - same variant, since the
             // full App Distribution SDK (shake-to-report) below is already gated to debug-only.
             firebaseAppDistribution {
-                releaseNotes = "Test build for feedback."
+                releaseNotes = "Shot detection fixes: the mic now arms before the start beep " +
+                    "(fast first shots register), and a race that could silently drop " +
+                    "detected shots is fixed. Please retest draw-time accuracy."
                 testers = "lymberkyle@gmail.com,jess54191@gmail.com"
             }
         }
