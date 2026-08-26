@@ -40,6 +40,10 @@ When the user presses start, the app triggers a high-precision timer and emits a
 | **Total Elapsed Time** | Start beep to final shot | Stage score input (with hits, for Hit Factor scoring) |
 | **Par Time** | Secondary beep after a set duration | Fixed-time drills, dry fire training |
 
+## Implementation status
+
+v1 scope below has shipped and the app has grown beyond it: custom drills, per-shooter stats/trends/rename-merge, run share/CSV export, and optional Google/Firestore cloud backup are all implemented but weren't part of this original spec. One v1 item remains outstanding: **Transition Time** (listed in the metrics table above) is not implemented — only First Shot, Split, Total Elapsed, and Par Time are tracked.
+
 ## v1 scope
 
 - Start/delay/beep
