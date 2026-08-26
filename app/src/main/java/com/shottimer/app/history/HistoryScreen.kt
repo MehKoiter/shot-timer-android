@@ -53,6 +53,7 @@ private fun formatTimestamp(epochMillis: Long): String =
 @Composable
 fun HistoryScreen(
     modifier: Modifier = Modifier,
+    initialShooterFilter: String? = null,
     viewModel: HistoryViewModel = viewModel()
 ) {
     val runs by viewModel.runs.collectAsStateWithLifecycle()
@@ -70,16 +71,28 @@ fun HistoryScreen(
             modifier = modifier
         )
     } else {
-        RunList(runs = runs, onSelect = { selectedRunId = it.id }, modifier = modifier)
+        RunList(
+            runs = runs,
+            onSelect = { selectedRunId = it.id },
+            modifier = modifier,
+            initialShooterFilter = initialShooterFilter
+        )
     }
 }
 
 @Composable
-private fun RunList(runs: List<RunEntity>, onSelect: (RunEntity) -> Unit, modifier: Modifier = Modifier) {
+private fun RunList(
+    runs: List<RunEntity>,
+    onSelect: (RunEntity) -> Unit,
+    modifier: Modifier = Modifier,
+    initialShooterFilter: String? = null
+) {
     // null selection = "All". Categories reflect what's actually in the data, not a hardcoded
     // drill list, so this still makes sense if DrillLibrary changes later.
     var selectedCategory by rememberSaveable { mutableStateOf<String?>(null) }
-    var selectedShooter by rememberSaveable { mutableStateOf<String?>(null) }
+    // Seeded from initialShooterFilter when arriving via a tap on the Shooters tab; the user can
+    // still change or clear it like any other chip selection afterwards.
+    var selectedShooter by rememberSaveable { mutableStateOf(initialShooterFilter) }
     val categories = remember(runs) {
         listOf(null) + runs.mapNotNull { it.drillName }.distinct().sorted() + PRACTICE_CATEGORY
     }

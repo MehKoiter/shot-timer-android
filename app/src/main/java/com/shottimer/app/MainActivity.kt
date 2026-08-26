@@ -73,6 +73,10 @@ private fun AppRoot() {
     // rememberSaveable, not remember: rotation (or any configuration change) recreates the
     // Activity, and plain remember snapped the user back to the Timer tab every time.
     var screen by rememberSaveable { mutableStateOf(AppScreen.TIMER) }
+    // Set when a shooter card on the Shooters tab is tapped, so History opens pre-filtered to
+    // them. Cleared when History is opened directly from the nav bar - a direct visit should
+    // start unfiltered, not resurrect the last tapped shooter.
+    var pendingShooterFilter by rememberSaveable { mutableStateOf<String?>(null) }
     val shotTimerViewModel: ShotTimerViewModel = viewModel()
 
     FirstLaunchSignInPrompt()
@@ -101,7 +105,10 @@ private fun AppRoot() {
                 )
                 NavigationBarItem(
                     selected = screen == AppScreen.HISTORY,
-                    onClick = { screen = AppScreen.HISTORY },
+                    onClick = {
+                        pendingShooterFilter = null
+                        screen = AppScreen.HISTORY
+                    },
                     icon = { Icon(Icons.Default.History, contentDescription = null) },
                     label = { Text(AppScreen.HISTORY.label) }
                 )
@@ -126,8 +133,17 @@ private fun AppRoot() {
                     screen = AppScreen.TIMER
                 }
             )
-            AppScreen.SHOOTERS -> ShootersScreen(modifier = contentModifier)
-            AppScreen.HISTORY -> HistoryScreen(modifier = contentModifier)
+            AppScreen.SHOOTERS -> ShootersScreen(
+                modifier = contentModifier,
+                onShooterClick = { name ->
+                    pendingShooterFilter = name
+                    screen = AppScreen.HISTORY
+                }
+            )
+            AppScreen.HISTORY -> HistoryScreen(
+                modifier = contentModifier,
+                initialShooterFilter = pendingShooterFilter
+            )
             AppScreen.SETTINGS -> SettingsScreen(modifier = contentModifier)
         }
     }

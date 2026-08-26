@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,6 +30,7 @@ import kotlin.math.roundToLong
  * (see [com.shottimer.app.data.RunDao.observeShooterStats]). */
 @Composable
 fun ShootersScreen(
+    onShooterClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ShootersViewModel = viewModel()
 ) {
@@ -38,7 +40,7 @@ fun ShootersScreen(
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
             Text(
                 text = "Stats for everyone you've tagged as the shooter on a run - set a name on " +
-                    "the Timer tab before starting to track someone.",
+                    "the Timer tab before starting to track someone. Tap a shooter to see their runs.",
                 style = MaterialTheme.typography.bodySmall
             )
             Spacer(Modifier.height(16.dp))
@@ -48,7 +50,7 @@ fun ShootersScreen(
             } else {
                 LazyColumn {
                     items(stats, key = { it.shooterName }) { shooter ->
-                        ShooterCard(shooter)
+                        ShooterCard(stats = shooter, onClick = { onShooterClick(shooter.shooterName) })
                     }
                 }
             }
@@ -56,9 +58,13 @@ fun ShootersScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ShooterCard(stats: ShooterStats) {
-    Card(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+private fun ShooterCard(stats: ShooterStats, onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(text = stats.shooterName, style = MaterialTheme.typography.titleSmall)
             Spacer(Modifier.height(12.dp))
