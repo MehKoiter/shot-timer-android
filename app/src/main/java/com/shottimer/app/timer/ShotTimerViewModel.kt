@@ -21,7 +21,6 @@ import kotlin.math.sin
 import kotlin.random.Random
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +28,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -97,6 +98,10 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
     private var parJob: Job? = null
     private var startMarkNanos: Long = 0L
 
+    // Written on the main dispatcher (start()) but read from detectShots' collector on
+    // Dispatchers.IO, so it needs to be volatile for visibility across threads.
+    @Volatile private var suppressUntilNanos: Long = Long.MAX_VALUE
+
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     fun start() {
         if (_uiState.value.runState == RunState.ARMED_WAITING || _uiState.value.runState == RunState.RUNNING) return
@@ -105,23 +110,29 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
             thresholdAmplitude = thresholdFor(_uiState.value.sensitivity),
             lockoutNanos = settings.echoLockoutMs * 1_000_000L
         )
+        suppressUntilNanos = Long.MAX_VALUE
         _uiState.value = freshIdleState().copy(runState = RunState.ARMED_WAITING, micErrorMessage = null)
         runJob = viewModelScope.launch {
+            // Launch detection immediately so AudioRecord is armed and recording throughout the
+            // random delay - otherwise a fast first shot can beat the mic coming up. Detected
+            // chunks are dropped (see suppressUntilNanos) until just after the start beep ends,
+            // so the detector's internal echo-lockout state stays clean during the wait and the
+            // beep itself is never mistaken for shot #1.
+            launch { detectShots(detector) }
+
             val minDelayMs = (settings.minDelaySeconds * 1000).toLong()
             val maxDelayMs = (settings.maxDelaySeconds * 1000).toLong()
             delay(Random.nextLong(minDelayMs, maxDelayMs + 1))
             playTone(startBeepSamples, settings.beepVolume)
             startMarkNanos = SystemClock.elapsedRealtimeNanos()
-            _uiState.value = _uiState.value.copy(runState = RunState.RUNNING)
+            suppressUntilNanos = startMarkNanos + (BEEP_DURATION_MS + 50) * 1_000_000L
+            _uiState.update { it.copy(runState = RunState.RUNNING) }
 
             if (_uiState.value.parTimeEnabled) {
                 schedulePar(_uiState.value.parTimeSeconds, settings.beepVolume)
             }
 
-            coroutineScope {
-                launch { runClock() }
-                launch { detectShots(detector) }
-            }
+            runClock()
         }
     }
 
@@ -131,11 +142,14 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
         val runStateBeforeCancel = _uiState.value.runState
         runJob?.cancel()
         runJob = null
-        _uiState.value = when (runStateBeforeCancel) {
+        when (runStateBeforeCancel) {
             // Cancelled during the random delay, before the beep ever fired - nothing to record.
-            RunState.ARMED_WAITING -> freshIdleState()
-            RunState.RUNNING -> _uiState.value.copy(runState = RunState.STOPPED).also(::saveRun)
-            else -> _uiState.value
+            RunState.ARMED_WAITING -> _uiState.value = freshIdleState()
+            RunState.RUNNING -> {
+                val finishedState = _uiState.updateAndGet { it.copy(runState = RunState.STOPPED) }
+                saveRun(finishedState)
+            }
+            else -> Unit
         }
     }
 
@@ -155,26 +169,26 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun selectDrill(drill: Drill?) {
-        _uiState.value = _uiState.value.copy(selectedDrill = drill)
+        _uiState.update { it.copy(selectedDrill = drill) }
     }
 
     /** Blank/whitespace-only names collapse to null rather than saving as an empty-string tag. */
     fun selectShooter(name: String?) {
-        _uiState.value = _uiState.value.copy(selectedShooter = name?.trim()?.takeIf { it.isNotEmpty() })
+        _uiState.update { it.copy(selectedShooter = name?.trim()?.takeIf { name -> name.isNotEmpty() }) }
     }
 
     fun setSensitivity(sensitivity: Float) {
-        _uiState.value = _uiState.value.copy(sensitivity = sensitivity.coerceIn(0f, 1f))
+        _uiState.update { it.copy(sensitivity = sensitivity.coerceIn(0f, 1f)) }
     }
 
     fun setParTimeEnabled(enabled: Boolean) {
-        _uiState.value = _uiState.value.copy(parTimeEnabled = enabled)
+        _uiState.update { it.copy(parTimeEnabled = enabled) }
     }
 
     fun setParTimeSeconds(seconds: Float) {
-        _uiState.value = _uiState.value.copy(
-            parTimeSeconds = seconds.coerceIn(MIN_PAR_TIME_SECONDS, MAX_PAR_TIME_SECONDS)
-        )
+        _uiState.update {
+            it.copy(parTimeSeconds = seconds.coerceIn(MIN_PAR_TIME_SECONDS, MAX_PAR_TIME_SECONDS))
+        }
     }
 
     /** Fields that should survive a fresh start()/stop() reset instead of snapping back to defaults. */
@@ -200,7 +214,7 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
     private suspend fun runClock() {
         while (currentCoroutineContext().isActive) {
             val elapsedMs = (SystemClock.elapsedRealtimeNanos() - startMarkNanos) / 1_000_000
-            _uiState.value = _uiState.value.copy(elapsedMillis = elapsedMs)
+            _uiState.update { it.copy(elapsedMillis = elapsedMs) }
             delay(TICK_INTERVAL_MS)
         }
     }
@@ -209,12 +223,15 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
     private suspend fun detectShots(detector: ShotDetector) {
         try {
             audioSource.chunks().collect { chunk ->
+                // Drop audio captured while armed-waiting or during the start beep itself, so the
+                // detector never sees it - keeps its internal echo-lockout state clean and stops
+                // the beep from being mistaken for shot #1 or from tripping the lockout and
+                // suppressing a genuinely fast first shot.
+                if (chunk.captureEndNanos < suppressUntilNanos) return@collect
                 val events = detector.process(chunk)
                 if (events.isNotEmpty()) {
                     val newSplits = events.map { (it.timestampNanos - startMarkNanos) / 1_000_000 }
-                    _uiState.value = _uiState.value.copy(
-                        shotSplitsMillis = _uiState.value.shotSplitsMillis + newSplits
-                    )
+                    _uiState.update { it.copy(shotSplitsMillis = it.shotSplitsMillis + newSplits) }
                 }
             }
         } catch (e: CancellationException) {
@@ -222,9 +239,9 @@ class ShotTimerViewModel(application: Application) : AndroidViewModel(applicatio
         } catch (e: Exception) {
             // AudioRecord failed to initialize (mic busy/unavailable) - surface it instead of the
             // whole app crashing from an uncaught exception in this coroutine.
-            _uiState.value = _uiState.value.copy(
-                micErrorMessage = "Microphone unavailable - shot detection stopped for this run"
-            )
+            _uiState.update {
+                it.copy(micErrorMessage = "Microphone unavailable - shot detection stopped for this run")
+            }
         }
     }
 
