@@ -7,6 +7,7 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
@@ -70,15 +71,40 @@ class AuthRepository private constructor(context: Context) {
      */
     suspend fun signIn(activityContext: Context): Result<Unit> {
         return try {
-            val googleIdOption = GetGoogleIdOption.Builder()
-                .setServerClientId(activityContext.getString(R.string.default_web_client_id))
-                .build()
-            val request = GetCredentialRequest.Builder()
-                .addCredentialOption(googleIdOption)
-                .build()
+            val credentialManager = CredentialManager.create(activityContext)
+            val webClientId = activityContext.getString(R.string.default_web_client_id)
 
-            val response = CredentialManager.create(activityContext)
-                .getCredential(activityContext, request)
+            // Try the returning-user path first (only accounts already authorized for this
+            // app's OAuth client, no picker shown if there's exactly one). Google's own
+            // Credential Manager guidance is to fall back to an unfiltered request - which
+            // shows a full account picker - when that finds nothing, since "no account has
+            // ever signed into this app before" is the ordinary case for a first sign-in, not
+            // an error.
+            val response = try {
+                credentialManager.getCredential(
+                    activityContext,
+                    GetCredentialRequest.Builder()
+                        .addCredentialOption(
+                            GetGoogleIdOption.Builder()
+                                .setServerClientId(webClientId)
+                                .setFilterByAuthorizedAccounts(true)
+                                .build()
+                        )
+                        .build()
+                )
+            } catch (e: NoCredentialException) {
+                credentialManager.getCredential(
+                    activityContext,
+                    GetCredentialRequest.Builder()
+                        .addCredentialOption(
+                            GetGoogleIdOption.Builder()
+                                .setServerClientId(webClientId)
+                                .setFilterByAuthorizedAccounts(false)
+                                .build()
+                        )
+                        .build()
+                )
+            }
 
             val idToken = response.credential.toGoogleIdToken()
             val firebaseCredential = GoogleAuthProvider.getCredential(idToken, null)
