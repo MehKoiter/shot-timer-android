@@ -13,18 +13,23 @@ const SCREENSHOT_SIGNED_URL_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const TITLE_SNIPPET_LENGTH = 60;
 
 /**
- * Parses a Cloud Storage URI referencing the tester's screenshot and
- * returns a long-lived signed HTTPS URL for embedding in a GitHub issue.
+ * Resolves a usable HTTPS URL for the tester's screenshot, for embedding in a GitHub issue.
  *
- * Firebase App Distribution's docs describe `screenshotUri` as "URI of the
- * screenshot hosted by Firebase". In practice this is a `gs://bucket/path`
- * style Cloud Storage URI, but we parse defensively (also accepting a bare
- * object path in the default bucket) and return null instead of throwing
- * if the format is ever unexpected.
+ * In practice `screenshotUri` (despite what Firebase's docs suggest) is already a temporary
+ * HTTPS download URL hosted by Firebase App Distribution itself (same pattern as the release
+ * binary download links), not a `gs://bucket/path` Cloud Storage URI - confirmed by real
+ * function logs. That URL is used directly with no signing needed. A `gs://` URI is handled
+ * as a defensive fallback in case the payload shape ever changes, but note it requires the
+ * runtime service account to hold `roles/iam.serviceAccountTokenCreator` (signBlob permission)
+ * to generate a signed URL, which is not granted by default.
  */
 async function getScreenshotSignedUrl(screenshotUri) {
   if (!screenshotUri || typeof screenshotUri !== "string") {
     return null;
+  }
+
+  if (/^https?:\/\//.test(screenshotUri)) {
+    return screenshotUri;
   }
 
   try {
