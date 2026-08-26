@@ -17,8 +17,8 @@ android {
         applicationId = "com.shottimer.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "0.2.5"
+        versionCode = 8
+        versionName = "0.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -29,9 +29,10 @@ android {
             // developer's own local debug installs only in intent - same variant, since the
             // full App Distribution SDK (shake-to-report) below is already gated to debug-only.
             firebaseAppDistribution {
-                releaseNotes = "Same as 0.2.5 (tap a shooter for their run history, random " +
-                    "delay slider) plus: deleting a run now shows an Undo option instead of " +
-                    "a confirm dialog. Welcome aboard George!"
+                releaseNotes = "Big one: create your own drills (+ button on Drills, which " +
+                    "is now a tap-to-expand list), edit/rename/remove shooters from their " +
+                    "cards, share a run or export everything as CSV from History, and each " +
+                    "shooter now shows a trend line of their recent runs."
                 testers = "lymberkyle@gmail.com,jess54191@gmail.com,georgepace8@gmail.com"
             }
         }
