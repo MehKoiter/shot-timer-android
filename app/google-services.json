@@ -41,6 +41,43 @@
           ]
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:998065547300:android:6b60f1742c1219308190b1",
+        "android_client_info": {
+          "package_name": "com.shottimer.app.synctest"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "998065547300-7oug2cs2tmmbutph1uceot021v05olvv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.shottimer.app.synctest",
+            "certificate_hash": "3534fc58af6268daa72cdc6282b3da581b1c0e76"
+          }
+        },
+        {
+          "client_id": "998065547300-6n83io9fsr5r1gefrcn7f78o9uj7o2o9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBcYDJj9Su4_DELApv72xDUUithlOrLZvw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "998065547300-6n83io9fsr5r1gefrcn7f78o9uj7o2o9.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
     }
   ],
   "configuration_version": "1"
