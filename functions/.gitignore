@@ -1,0 +1,12 @@
+# Node dependencies
+node_modules/
+
+# Firebase local config / logs
+.runtimeconfig.json
+firebase-debug.log
+firebase-debug.*.log
+
+# Never commit real secret values
+.env
+.env.*
+!.env.example
