@@ -20,6 +20,16 @@ See [docs/DESIGN.md](docs/DESIGN.md) for the original functional spec this proje
 
 In active use by a small group of testers via Firebase App Distribution. Core timing/detection, drills, history, shooter management, and optional cloud backup are implemented; see [docs/DESIGN.md](docs/DESIGN.md)'s Open Questions for what's still unresolved.
 
+## Device compatibility
+
+Requires Android 8.0 (API 26) or newer — no other hardware requirements beyond a working microphone. Confirmed working on:
+
+| Device | Android version | Notes |
+|---|---|---|
+| Samsung Galaxy S25 Ultra | Android 15 | First tester device; installed and used via Firebase App Distribution. |
+
+This list only reflects devices a tester has actually confirmed - most Android 8.0+ phones should work fine even if not listed yet. Add a row here once a new device is confirmed.
+
 ## Intended use
 
 This is a training/scoring tool for organized action-shooting sports and dry-fire practice on ranges where such use is permitted. It is a timing utility only — it does not control or interact with any firearm.
