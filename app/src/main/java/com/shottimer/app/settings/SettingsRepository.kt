@@ -11,6 +11,7 @@ private const val KEY_LOCKOUT_MS = "echo_lockout_ms"
 private const val KEY_MIN_DELAY = "min_delay_seconds"
 private const val KEY_MAX_DELAY = "max_delay_seconds"
 private const val KEY_BEEP_VOLUME = "beep_volume"
+private const val KEY_SIGNIN_PROMPT_SHOWN = "signin_prompt_shown"
 
 /**
  * Plain SharedPreferences rather than DataStore: a handful of scalar settings doesn't need
@@ -49,6 +50,16 @@ class SettingsRepository private constructor(context: Context) {
             .putFloat(KEY_MAX_DELAY, updated.maxDelaySeconds)
             .putFloat(KEY_BEEP_VOLUME, updated.beepVolume)
             .apply()
+    }
+
+    /** One-shot bookkeeping for the first-launch "back up your runs?" dialog - deliberately not
+     * part of [TimerSettings], which models run behavior, not UI flow state. Once marked shown
+     * (whether the user signed in or tapped "Not now"), the prompt never appears again; the
+     * Settings > Back up to Google path remains the way in after that. */
+    fun wasSignInPromptShown(): Boolean = prefs.getBoolean(KEY_SIGNIN_PROMPT_SHOWN, false)
+
+    fun markSignInPromptShown() {
+        prefs.edit().putBoolean(KEY_SIGNIN_PROMPT_SHOWN, true).apply()
     }
 
     companion object {
