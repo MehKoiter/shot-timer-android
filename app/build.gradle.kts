@@ -53,6 +53,10 @@ android {
 
     buildFeatures {
         compose = true
+        // Needed for BuildConfig.DEBUG, which gates the shake-to-report feedback detector and
+        // Settings "Send Feedback" row to debug builds only - AGP 8+ no longer generates
+        // BuildConfig by default.
+        buildConfig = true
     }
 
     sourceSets {
