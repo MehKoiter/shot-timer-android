@@ -6,11 +6,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -43,12 +45,14 @@ import androidx.compose.runtime.setValue
 import androidx.annotation.StringRes
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.shottimer.app.R
+import com.shottimer.app.permission.MicPermissionState
 import com.shottimer.app.permission.OpenAppSettingsButton
 import com.shottimer.app.permission.rememberMicPermissionState
 import com.shottimer.app.results.RunSummaryView
@@ -77,87 +81,27 @@ fun TimerScreen(
     }
 
     ScreenScaffold(title = stringResource(R.string.tab_timer), modifier = modifier) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(text = stringResource(statusTextRes(uiState.runState)), style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(8.dp))
-                    Text(text = formatElapsed(uiState.elapsedMillis), style = MaterialTheme.typography.displayLarge)
-                }
-            }
-            uiState.micErrorMessage?.let { message ->
-                Spacer(Modifier.height(8.dp))
-                Text(text = message, color = MaterialTheme.colorScheme.error)
-            }
-            Spacer(Modifier.height(12.dp))
+        // Width-vs-height rather than the ORIENTATION_* flag: what actually matters is whether
+        // there's room for a side-by-side layout, which a plain portrait/landscape check gets
+        // wrong on e.g. a small landscape window in split-screen.
+        val configuration = LocalConfiguration.current
+        val isWide = configuration.screenWidthDp > configuration.screenHeightDp
 
-            // Run context and per-run options as one compact chip row - these used to be three
-            // stacked full-width cards that pushed the Start button below the fold.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val drill = uiState.selectedDrill
-                if (drill != null) {
-                    InputChip(
-                        selected = true,
-                        onClick = { viewModel.selectDrill(null) },
-                        label = { Text(drill.name) },
-                        trailingIcon = { Icon(Icons.Default.Close, contentDescription = stringResource(R.string.clear_drill)) }
-                    )
-                }
-                InputChip(
-                    selected = uiState.selectedShooter != null,
-                    onClick = { showShooterPicker = true },
-                    label = { Text(uiState.selectedShooter ?: stringResource(R.string.tag_shooter)) },
-                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) }
-                )
-                AssistChip(
-                    onClick = { showRunOptions = true },
-                    label = { Text(stringResource(R.string.run_options_chip)) },
-                    leadingIcon = { Icon(Icons.Default.Tune, contentDescription = null) }
-                )
-            }
-            Spacer(Modifier.height(16.dp))
-
-            // One oversized target: this gets hit one-handed, possibly gloved, with ear pro on.
-            val bigButton = Modifier
-                .fillMaxWidth()
-                .height(72.dp)
-            when {
-                !micPermission.isGranted && micPermission.isPermanentlyDenied -> OpenAppSettingsButton()
-                !micPermission.isGranted -> Button(onClick = micPermission.request, modifier = bigButton) {
-                    Text(stringResource(R.string.grant_mic_to_start))
-                }
-                uiState.runState == RunState.IDLE || uiState.runState == RunState.STOPPED ->
-                    Button(onClick = viewModel::start, modifier = bigButton) {
-                        Text(stringResource(R.string.start), style = MaterialTheme.typography.titleLarge)
-                    }
-                else -> Button(
-                    onClick = viewModel::stop,
-                    modifier = bigButton,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) { Text(stringResource(R.string.stop), style = MaterialTheme.typography.titleLarge) }
-            }
-
-            Spacer(Modifier.height(24.dp))
-            RunSummaryView(
-                totalElapsedMillis = uiState.elapsedMillis,
-                shotTimestampsMillis = uiState.shotSplitsMillis,
-                modifier = Modifier.fillMaxWidth(),
-                expectedRoundCount = uiState.selectedDrill?.roundCount
+        if (isWide) {
+            TimerScreenWide(
+                uiState = uiState,
+                viewModel = viewModel,
+                micPermission = micPermission,
+                onShowShooterPicker = { showShooterPicker = true },
+                onShowRunOptions = { showRunOptions = true }
+            )
+        } else {
+            TimerScreenNarrow(
+                uiState = uiState,
+                viewModel = viewModel,
+                micPermission = micPermission,
+                onShowShooterPicker = { showShooterPicker = true },
+                onShowRunOptions = { showRunOptions = true }
             )
         }
     }
@@ -181,6 +125,171 @@ fun TimerScreen(
             },
             onDismiss = { showShooterPicker = false }
         )
+    }
+}
+
+/** Portrait: everything in one scrolling column, as before. */
+@Composable
+private fun TimerScreenNarrow(
+    uiState: TimerUiState,
+    viewModel: ShotTimerViewModel,
+    micPermission: MicPermissionState,
+    onShowShooterPicker: () -> Unit,
+    onShowRunOptions: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        TimerClockCard(uiState, modifier = Modifier.fillMaxWidth())
+        uiState.micErrorMessage?.let { message ->
+            Spacer(Modifier.height(8.dp))
+            Text(text = message, color = MaterialTheme.colorScheme.error)
+        }
+        Spacer(Modifier.height(12.dp))
+        TimerChipRow(uiState, viewModel, onShowShooterPicker, onShowRunOptions)
+        Spacer(Modifier.height(16.dp))
+        TimerActionButton(uiState, viewModel, micPermission, modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.height(24.dp))
+        RunSummaryView(
+            totalElapsedMillis = uiState.elapsedMillis,
+            shotTimestampsMillis = uiState.shotSplitsMillis,
+            modifier = Modifier.fillMaxWidth(),
+            expectedRoundCount = uiState.selectedDrill?.roundCount
+        )
+    }
+}
+
+/**
+ * Landscape: the clock/controls pane used to get pushed off-screen by a single scrolling column,
+ * forcing a scroll to even reach Start. Splitting into a fixed control pane (left) and a
+ * separately-scrolling results pane (right) means Start is always on screen without scrolling.
+ */
+@Composable
+private fun TimerScreenWide(
+    uiState: TimerUiState,
+    viewModel: ShotTimerViewModel,
+    micPermission: MicPermissionState,
+    onShowShooterPicker: () -> Unit,
+    onShowRunOptions: () -> Unit
+) {
+    Row(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 4.dp)) {
+        // Scrollable, not just centered: on a short landscape window (small phone, split-screen)
+        // a fixed centered column can overflow and clip content - most devices fit everything
+        // without needing to scroll, but this is the safety net rather than losing the button.
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            TimerClockCard(uiState, modifier = Modifier.fillMaxWidth(), compact = true)
+            uiState.micErrorMessage?.let { message ->
+                Spacer(Modifier.height(4.dp))
+                Text(text = message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+            Spacer(Modifier.height(4.dp))
+            TimerChipRow(uiState, viewModel, onShowShooterPicker, onShowRunOptions)
+            Spacer(Modifier.height(4.dp))
+            TimerActionButton(uiState, viewModel, micPermission, modifier = Modifier.fillMaxWidth(), compact = true)
+        }
+        Spacer(Modifier.width(24.dp))
+        RunSummaryView(
+            totalElapsedMillis = uiState.elapsedMillis,
+            shotTimestampsMillis = uiState.shotSplitsMillis,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState()),
+            expectedRoundCount = uiState.selectedDrill?.roundCount
+        )
+    }
+}
+
+@Composable
+private fun TimerClockCard(uiState: TimerUiState, modifier: Modifier = Modifier, compact: Boolean = false) {
+    Card(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(if (compact) 8.dp else 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(text = stringResource(statusTextRes(uiState.runState)), style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(if (compact) 4.dp else 8.dp))
+            Text(
+                text = formatElapsed(uiState.elapsedMillis),
+                style = if (compact) MaterialTheme.typography.displaySmall else MaterialTheme.typography.displayLarge
+            )
+        }
+    }
+}
+
+/** Run context and per-run options as one compact chip row - these used to be three stacked
+ * full-width cards that pushed the Start button below the fold. */
+@Composable
+private fun TimerChipRow(
+    uiState: TimerUiState,
+    viewModel: ShotTimerViewModel,
+    onShowShooterPicker: () -> Unit,
+    onShowRunOptions: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        val drill = uiState.selectedDrill
+        if (drill != null) {
+            InputChip(
+                selected = true,
+                onClick = { viewModel.selectDrill(null) },
+                label = { Text(drill.name) },
+                trailingIcon = { Icon(Icons.Default.Close, contentDescription = stringResource(R.string.clear_drill)) }
+            )
+        }
+        InputChip(
+            selected = uiState.selectedShooter != null,
+            onClick = onShowShooterPicker,
+            label = { Text(uiState.selectedShooter ?: stringResource(R.string.tag_shooter)) },
+            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) }
+        )
+        AssistChip(
+            onClick = onShowRunOptions,
+            label = { Text(stringResource(R.string.run_options_chip)) },
+            leadingIcon = { Icon(Icons.Default.Tune, contentDescription = null) }
+        )
+    }
+}
+
+/** One oversized target: this gets hit one-handed, possibly gloved, with ear pro on. */
+@Composable
+private fun TimerActionButton(
+    uiState: TimerUiState,
+    viewModel: ShotTimerViewModel,
+    micPermission: MicPermissionState,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false
+) {
+    val bigButton = modifier.height(if (compact) 48.dp else 72.dp)
+    when {
+        !micPermission.isGranted && micPermission.isPermanentlyDenied -> OpenAppSettingsButton()
+        !micPermission.isGranted -> Button(onClick = micPermission.request, modifier = bigButton) {
+            Text(stringResource(R.string.grant_mic_to_start))
+        }
+        uiState.runState == RunState.IDLE || uiState.runState == RunState.STOPPED ->
+            Button(onClick = viewModel::start, modifier = bigButton) {
+                Text(stringResource(R.string.start), style = MaterialTheme.typography.titleLarge)
+            }
+        else -> Button(
+            onClick = viewModel::stop,
+            modifier = bigButton,
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+        ) { Text(stringResource(R.string.stop), style = MaterialTheme.typography.titleLarge) }
     }
 }
 

@@ -16,6 +16,11 @@ val Typography = Typography(
         fontFeatureSettings = "tnum",
         fontWeight = FontWeight.Medium
     ),
+    // Same clock, smaller: used for the compact landscape Timer layout.
+    displaySmall = Default.displaySmall.copy(
+        fontFeatureSettings = "tnum",
+        fontWeight = FontWeight.Medium
+    ),
     // Also used for digits that line up in columns (run list elapsed times, shooter stats).
     titleMedium = Default.titleMedium.copy(fontFeatureSettings = "tnum"),
     bodyLarge = TextStyle(
