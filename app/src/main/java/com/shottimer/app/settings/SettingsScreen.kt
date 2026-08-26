@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -28,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,22 +43,24 @@ import com.shottimer.app.audio.MicTestScreen
 import com.shottimer.app.auth.AuthState
 import com.shottimer.app.sync.BackupScreen
 import com.shottimer.app.sync.SyncViewModel
+import com.shottimer.app.ui.ScreenScaffold
 
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = viewModel()
 ) {
-    // Mic Test used to be its own bottom-nav tab - moved here as a sub-screen (same list/detail
-    // push-pop pattern HistoryScreen uses) to make room in the nav bar as more tabs were added.
-    var showMicTest by remember { mutableStateOf(false) }
+    // Mic Test used to be its own bottom-nav tab - moved here as a sub-screen (same push-pop
+    // pattern HistoryScreen uses) to make room in the nav bar as more tabs were added.
+    // rememberSaveable so rotation doesn't dump the user back to the Settings list.
+    var showMicTest by rememberSaveable { mutableStateOf(false) }
     if (showMicTest) {
         MicTestScreen(onBack = { showMicTest = false }, modifier = modifier)
         return
     }
 
     // Same push/pop pattern as showMicTest above.
-    var showBackup by remember { mutableStateOf(false) }
+    var showBackup by rememberSaveable { mutableStateOf(false) }
     if (showBackup) {
         BackupScreen(onBack = { showBackup = false }, modifier = modifier)
         return
@@ -68,13 +70,13 @@ fun SettingsScreen(
     val syncViewModel: SyncViewModel = viewModel()
     val authState by syncViewModel.authState.collectAsStateWithLifecycle()
 
+    ScreenScaffold(title = "Settings", modifier = modifier) {
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(horizontal = 16.dp)
     ) {
-        Text(text = "Settings", style = MaterialTheme.typography.titleMedium)
         Text(
             text = "These are defaults for new runs - changes don't affect a run already in progress.",
             style = MaterialTheme.typography.bodySmall
@@ -84,10 +86,9 @@ fun SettingsScreen(
         SettingSection(
             title = "Default sensitivity: ${(settings.defaultSensitivity * 100).toInt()}%",
             titleTrailing = {
-                IconButton(
-                    onClick = { showSensitivityHelp = !showSensitivityHelp },
-                    modifier = Modifier.size(24.dp)
-                ) {
+                // Default IconButton size (48dp) - a previous size(24.dp) shrank the touch
+                // target below the accessibility minimum.
+                IconButton(onClick = { showSensitivityHelp = !showSensitivityHelp }) {
                     Icon(Icons.Default.Info, contentDescription = "How does sensitivity work?")
                 }
             }
@@ -184,8 +185,8 @@ fun SettingsScreen(
             )
         }
 
-        // Test-build only: lets a tester report a bug without needing to remember/notice that
-        // shaking the phone works too (see ShakeFeedbackDetector). Same trigger under the hood.
+        // Test-build only: the one entry point into App Distribution's feedback flow (the
+        // shake-to-report gesture was removed - this button is it now).
         if (BuildConfig.DEBUG) {
             Card(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
                 ListItem(
@@ -197,6 +198,7 @@ fun SettingsScreen(
                 )
             }
         }
+    }
     }
 }
 

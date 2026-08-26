@@ -15,28 +15,30 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.shottimer.app.ui.ScreenScaffold
 
 @Composable
 fun DrillsScreen(
     onStartDrill: (Drill) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-    ) {
-        Text(text = "Drills", style = MaterialTheme.typography.titleMedium)
-        Text(
-            text = "Classic timed drills. Starting one loads the Timer screen with its round " +
-                "count so you can see your progress live - hit verification (zone, head shot, " +
-                "etc.) is on you and the target, the app only times and counts shots.",
-            style = MaterialTheme.typography.bodySmall
-        )
+    ScreenScaffold(title = "Drills", modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+        ) {
+            Text(
+                text = "Classic timed drills. Starting one loads the Timer screen with its round " +
+                    "count so you can see your progress live - hit verification (zone, head shot, " +
+                    "etc.) is on you and the target, the app only times and counts shots.",
+                style = MaterialTheme.typography.bodySmall
+            )
 
-        DrillLibrary.ALL.forEach { drill ->
-            DrillCard(drill = drill, onStart = { onStartDrill(drill) })
+            DrillLibrary.ALL.forEach { drill ->
+                DrillCard(drill = drill, onStart = { onStartDrill(drill) })
+            }
         }
     }
 }

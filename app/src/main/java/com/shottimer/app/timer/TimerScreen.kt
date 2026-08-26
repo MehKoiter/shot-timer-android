@@ -2,43 +2,57 @@ package com.shottimer.app.timer
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.shottimer.app.permission.OpenAppSettingsButton
 import com.shottimer.app.permission.rememberMicPermissionState
 import com.shottimer.app.results.RunSummaryView
-import com.shottimer.app.ui.theme.ShotTimerTheme
+import com.shottimer.app.ui.ScreenScaffold
 import com.shottimer.app.util.formatElapsed
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimerScreen(
     modifier: Modifier = Modifier,
@@ -48,113 +62,110 @@ fun TimerScreen(
     val knownShooters by viewModel.knownShooters.collectAsStateWithLifecycle()
     val micPermission = rememberMicPermissionState(onGranted = viewModel::start)
     var showShooterPicker by remember { mutableStateOf(false) }
+    var showRunOptions by rememberSaveable { mutableStateOf(false) }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(text = statusText(uiState.runState), style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(8.dp))
-                Text(text = formatElapsed(uiState.elapsedMillis), style = MaterialTheme.typography.displayLarge)
-            }
-        }
-        if (uiState.micErrorMessage != null) {
-            Spacer(Modifier.height(8.dp))
-            Text(text = uiState.micErrorMessage!!, color = MaterialTheme.colorScheme.error)
-        }
-        Spacer(Modifier.height(24.dp))
+    // A range timer that lets the display sleep mid-drill is useless - keep the screen on while
+    // a run is armed or live, and release the flag the moment it isn't (or we leave the screen).
+    val isRunActive = uiState.runState == RunState.ARMED_WAITING || uiState.runState == RunState.RUNNING
+    val view = LocalView.current
+    DisposableEffect(isRunActive) {
+        view.keepScreenOn = isRunActive
+        onDispose { view.keepScreenOn = false }
+    }
 
-        val drill = uiState.selectedDrill
-        if (drill != null) {
+    ScreenScaffold(title = "Timer", modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(text = drill.name, style = MaterialTheme.typography.titleSmall)
-                    Text(text = drill.instructions, style = MaterialTheme.typography.bodySmall)
-                    TextButton(onClick = { viewModel.selectDrill(null) }) { Text("Clear drill") }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(text = statusText(uiState.runState), style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(8.dp))
+                    Text(text = formatElapsed(uiState.elapsedMillis), style = MaterialTheme.typography.displayLarge)
                 }
             }
-            Spacer(Modifier.height(16.dp))
-        }
+            uiState.micErrorMessage?.let { message ->
+                Spacer(Modifier.height(8.dp))
+                Text(text = message, color = MaterialTheme.colorScheme.error)
+            }
+            Spacer(Modifier.height(12.dp))
 
-        Card(modifier = Modifier.fillMaxWidth()) {
+            // Run context and per-run options as one compact chip row - these used to be three
+            // stacked full-width cards that pushed the Start button below the fold.
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = uiState.selectedShooter?.let { "Shooter: $it" } ?: "No shooter tagged",
-                    style = MaterialTheme.typography.titleSmall
-                )
-                TextButton(onClick = { showShooterPicker = true }) {
-                    Text(if (uiState.selectedShooter != null) "Change" else "Set shooter")
-                }
-            }
-        }
-        Spacer(Modifier.height(16.dp))
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(text = "Sensitivity: ${(uiState.sensitivity * 100).toInt()}%")
-                Slider(
-                    value = uiState.sensitivity,
-                    onValueChange = viewModel::setSensitivity,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(text = "Par time")
-                    Switch(checked = uiState.parTimeEnabled, onCheckedChange = viewModel::setParTimeEnabled)
-                }
-                if (uiState.parTimeEnabled) {
-                    Text(text = "Par: %.1fs".format(uiState.parTimeSeconds))
-                    Slider(
-                        value = uiState.parTimeSeconds,
-                        onValueChange = viewModel::setParTimeSeconds,
-                        valueRange = MIN_PAR_TIME_SECONDS..MAX_PAR_TIME_SECONDS,
-                        modifier = Modifier.fillMaxWidth()
+                val drill = uiState.selectedDrill
+                if (drill != null) {
+                    InputChip(
+                        selected = true,
+                        onClick = { viewModel.selectDrill(null) },
+                        label = { Text(drill.name) },
+                        trailingIcon = { Icon(Icons.Default.Close, contentDescription = "Clear drill") }
                     )
                 }
+                InputChip(
+                    selected = uiState.selectedShooter != null,
+                    onClick = { showShooterPicker = true },
+                    label = { Text(uiState.selectedShooter ?: "Tag shooter") },
+                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) }
+                )
+                AssistChip(
+                    onClick = { showRunOptions = true },
+                    label = { Text("Options") },
+                    leadingIcon = { Icon(Icons.Default.Tune, contentDescription = null) }
+                )
             }
-        }
-        Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
 
-        when {
-            !micPermission.isGranted && micPermission.isPermanentlyDenied -> OpenAppSettingsButton()
-            !micPermission.isGranted -> Button(onClick = micPermission.request) {
-                Text("Grant microphone permission to start")
+            // One oversized target: this gets hit one-handed, possibly gloved, with ear pro on.
+            val bigButton = Modifier
+                .fillMaxWidth()
+                .height(72.dp)
+            when {
+                !micPermission.isGranted && micPermission.isPermanentlyDenied -> OpenAppSettingsButton()
+                !micPermission.isGranted -> Button(onClick = micPermission.request, modifier = bigButton) {
+                    Text("Grant microphone permission to start")
+                }
+                uiState.runState == RunState.IDLE || uiState.runState == RunState.STOPPED ->
+                    Button(onClick = viewModel::start, modifier = bigButton) {
+                        Text("Start", style = MaterialTheme.typography.titleLarge)
+                    }
+                else -> Button(
+                    onClick = viewModel::stop,
+                    modifier = bigButton,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Stop", style = MaterialTheme.typography.titleLarge) }
             }
-            uiState.runState == RunState.IDLE || uiState.runState == RunState.STOPPED ->
-                Button(onClick = viewModel::start) { Text("Start") }
-            else -> Button(
-                onClick = viewModel::stop,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-            ) { Text("Stop") }
-        }
 
-        Spacer(Modifier.height(32.dp))
-        RunSummaryView(
-            totalElapsedMillis = uiState.elapsedMillis,
-            shotTimestampsMillis = uiState.shotSplitsMillis,
-            modifier = Modifier.fillMaxWidth(),
-            expectedRoundCount = uiState.selectedDrill?.roundCount
+            Spacer(Modifier.height(24.dp))
+            RunSummaryView(
+                totalElapsedMillis = uiState.elapsedMillis,
+                shotTimestampsMillis = uiState.shotSplitsMillis,
+                modifier = Modifier.fillMaxWidth(),
+                expectedRoundCount = uiState.selectedDrill?.roundCount
+            )
+        }
+    }
+
+    if (showRunOptions) {
+        RunOptionsSheet(
+            uiState = uiState,
+            onSensitivityChange = viewModel::setSensitivity,
+            onParTimeEnabledChange = viewModel::setParTimeEnabled,
+            onParTimeSecondsChange = viewModel::setParTimeSeconds,
+            onDismiss = { showRunOptions = false }
         )
     }
 
@@ -167,6 +178,59 @@ fun TimerScreen(
             },
             onDismiss = { showShooterPicker = false }
         )
+    }
+}
+
+/** Per-run overrides (sensitivity, par time), pulled off the main screen into a sheet so the
+ * clock and Start button stay above the fold. Settings still holds the persistent defaults. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RunOptionsSheet(
+    uiState: TimerUiState,
+    onSensitivityChange: (Float) -> Unit,
+    onParTimeEnabledChange: (Boolean) -> Unit,
+    onParTimeSecondsChange: (Float) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
+            Text(text = "Run options", style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = "Apply to this run only - defaults live in Settings.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Spacer(Modifier.height(16.dp))
+
+            Text(text = "Sensitivity: ${(uiState.sensitivity * 100).toInt()}%")
+            Slider(
+                value = uiState.sensitivity,
+                onValueChange = onSensitivityChange,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "Par time")
+                Switch(checked = uiState.parTimeEnabled, onCheckedChange = onParTimeEnabledChange)
+            }
+            if (uiState.parTimeEnabled) {
+                Text(text = "Par: %.1fs".format(uiState.parTimeSeconds))
+                Slider(
+                    value = uiState.parTimeSeconds,
+                    onValueChange = onParTimeSecondsChange,
+                    valueRange = MIN_PAR_TIME_SECONDS..MAX_PAR_TIME_SECONDS,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            Spacer(Modifier.height(24.dp))
+        }
     }
 }
 
@@ -205,13 +269,17 @@ private fun ShooterPickerDialog(
                             .verticalScroll(rememberScrollState())
                     ) {
                         knownShooters.forEach { name ->
-                            Text(
-                                text = name,
+                            // Box + heightIn rather than bare Text padding: keeps each row at the
+                            // 48dp minimum touch target.
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { onSelect(name) }
-                                    .padding(vertical = 8.dp)
-                            )
+                                    .heightIn(min = 48.dp)
+                                    .clickable { onSelect(name) },
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                Text(text = name)
+                            }
                         }
                     }
                 }
@@ -231,20 +299,4 @@ private fun statusText(state: RunState): String = when (state) {
     RunState.ARMED_WAITING -> "Stand by…"
     RunState.RUNNING -> "GO"
     RunState.STOPPED -> "Stopped"
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun TimerScreenIdlePreview() {
-    ShotTimerTheme {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(text = statusText(RunState.IDLE), style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(16.dp))
-            Text(text = formatElapsed(0L), style = MaterialTheme.typography.displayLarge)
-        }
-    }
 }

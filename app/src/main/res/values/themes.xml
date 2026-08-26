@@ -1,3 +1,8 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.ShotTimer" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Dark parent + charcoal window background to match the app's fixed black/gold Compose
+         theme (SigCharcoal in ui/theme/Color.kt). The previous Light parent painted a white
+         window behind a permanently dark app: a white flash on every cold start. -->
+    <style name="Theme.ShotTimer" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#FF141414</item>
+    </style>
 </resources>

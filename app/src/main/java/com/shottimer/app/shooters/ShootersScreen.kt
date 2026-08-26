@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.shottimer.app.data.ShooterStats
+import com.shottimer.app.ui.ScreenScaffold
 import com.shottimer.app.util.formatElapsed
 import kotlin.math.roundToLong
 
@@ -33,21 +34,22 @@ fun ShootersScreen(
 ) {
     val stats by viewModel.stats.collectAsStateWithLifecycle()
 
-    Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
-        Text(text = "Shooters", style = MaterialTheme.typography.titleMedium)
-        Text(
-            text = "Stats for everyone you've tagged as the shooter on a run - set a name on " +
-                "the Timer tab before starting to track someone.",
-            style = MaterialTheme.typography.bodySmall
-        )
-        Spacer(Modifier.height(16.dp))
+    ScreenScaffold(title = "Shooters", modifier = modifier) {
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+            Text(
+                text = "Stats for everyone you've tagged as the shooter on a run - set a name on " +
+                    "the Timer tab before starting to track someone.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Spacer(Modifier.height(16.dp))
 
-        if (stats.isEmpty()) {
-            Text(text = "No shooters tagged yet - completed runs with a shooter set will show up here")
-        } else {
-            LazyColumn {
-                items(stats, key = { it.shooterName }) { shooter ->
-                    ShooterCard(shooter)
+            if (stats.isEmpty()) {
+                Text(text = "No shooters tagged yet - completed runs with a shooter set will show up here")
+            } else {
+                LazyColumn {
+                    items(stats, key = { it.shooterName }) { shooter ->
+                        ShooterCard(shooter)
+                    }
                 }
             }
         }

@@ -2,6 +2,7 @@ package com.shottimer.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,7 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -43,7 +44,14 @@ private enum class AppScreen(val label: String) {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // The app is a fixed dark theme regardless of system setting (see ShotTimerTheme), so the
+        // system bars must be told explicitly - the no-arg overload follows the system theme and
+        // draws light-mode scrims/icons over our dark background when the OS is in light mode.
+        val transparent = android.graphics.Color.TRANSPARENT
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(transparent),
+            navigationBarStyle = SystemBarStyle.dark(transparent)
+        )
         setContent {
             ShotTimerTheme {
                 AppRoot()
@@ -54,7 +62,9 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun AppRoot() {
-    var screen by remember { mutableStateOf(AppScreen.TIMER) }
+    // rememberSaveable, not remember: rotation (or any configuration change) recreates the
+    // Activity, and plain remember snapped the user back to the Timer tab every time.
+    var screen by rememberSaveable { mutableStateOf(AppScreen.TIMER) }
     val shotTimerViewModel: ShotTimerViewModel = viewModel()
 
     Scaffold(

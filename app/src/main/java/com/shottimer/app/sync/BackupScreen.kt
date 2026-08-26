@@ -15,7 +15,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -25,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.shottimer.app.auth.AuthState
+import com.shottimer.app.ui.ScreenScaffold
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -47,16 +47,12 @@ fun BackupScreen(
     val signInError by viewModel.signInError.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
+    ScreenScaffold(title = "Back up to Google", modifier = modifier, onBack = onBack) {
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp)
+            .padding(16.dp)
     ) {
-        TextButton(onClick = onBack) { Text("< Back") }
-        Spacer(Modifier.height(8.dp))
-        Text(text = "Back up to Google", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(24.dp))
-
         when (val state = authState) {
             is AuthState.SignedOut -> SignedOutContent(
                 signInError = signInError,
@@ -69,6 +65,7 @@ fun BackupScreen(
                 onSignOut = { viewModel.signOut(context) }
             )
         }
+    }
     }
 }
 

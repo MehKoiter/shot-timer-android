@@ -15,7 +15,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -25,6 +24,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.shottimer.app.permission.OpenAppSettingsButton
 import com.shottimer.app.permission.rememberMicPermissionState
+import com.shottimer.app.ui.ScreenScaffold
 
 /** Reached from Settings, not its own bottom-nav tab - mirrors HistoryScreen's list/detail
  * push-pop pattern (a local `showX` boolean in the caller), so [onBack] is required. */
@@ -40,18 +40,14 @@ fun MicTestScreen(
     val isListening by viewModel.isListening.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
+    ScreenScaffold(title = "Mic Test", modifier = modifier, onBack = onBack) {
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        TextButton(onClick = onBack) { Text("< Back") }
-        Spacer(Modifier.height(8.dp))
-        Text(text = "Mic Test", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(24.dp))
-
         LevelMeter(
             level = level,
             modifier = Modifier
@@ -76,6 +72,7 @@ fun MicTestScreen(
             isListening -> Button(onClick = viewModel::stopListening) { Text("Stop listening") }
             else -> Button(onClick = viewModel::startListening) { Text("Start listening") }
         }
+    }
     }
 }
 

@@ -3,7 +3,6 @@ package com.shottimer.app.history
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,10 +13,14 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -26,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -33,6 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.shottimer.app.data.RunEntity
 import com.shottimer.app.results.RunSummaryView
+import com.shottimer.app.ui.ScreenScaffold
 import com.shottimer.app.util.formatElapsed
 import java.time.Instant
 import java.time.ZoneId
@@ -51,18 +56,21 @@ fun HistoryScreen(
     viewModel: HistoryViewModel = viewModel()
 ) {
     val runs by viewModel.runs.collectAsStateWithLifecycle()
-    var selectedRun by remember { mutableStateOf<RunEntity?>(null) }
+    // The id, not the RunEntity, so the selection survives rotation via rememberSaveable (and
+    // resolves against fresh data if the run list changes underneath us - a deleted run's id
+    // simply stops resolving and we fall back to the list).
+    var selectedRunId by rememberSaveable { mutableStateOf<Long?>(null) }
 
-    val current = selectedRun
+    val current = selectedRunId?.let { id -> runs.find { it.id == id } }
     if (current != null) {
         RunDetail(
             run = current,
-            onBack = { selectedRun = null },
+            onBack = { selectedRunId = null },
             onDelete = viewModel::deleteRun,
             modifier = modifier
         )
     } else {
-        RunList(runs = runs, onSelect = { selectedRun = it }, modifier = modifier)
+        RunList(runs = runs, onSelect = { selectedRunId = it.id }, modifier = modifier)
     }
 }
 
@@ -70,8 +78,8 @@ fun HistoryScreen(
 private fun RunList(runs: List<RunEntity>, onSelect: (RunEntity) -> Unit, modifier: Modifier = Modifier) {
     // null selection = "All". Categories reflect what's actually in the data, not a hardcoded
     // drill list, so this still makes sense if DrillLibrary changes later.
-    var selectedCategory by remember { mutableStateOf<String?>(null) }
-    var selectedShooter by remember { mutableStateOf<String?>(null) }
+    var selectedCategory by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedShooter by rememberSaveable { mutableStateOf<String?>(null) }
     val categories = remember(runs) {
         listOf(null) + runs.mapNotNull { it.drillName }.distinct().sorted() + PRACTICE_CATEGORY
     }
@@ -95,25 +103,24 @@ private fun RunList(runs: List<RunEntity>, onSelect: (RunEntity) -> Unit, modifi
         }
     }
 
-    Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
-        Text(text = "History", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(16.dp))
-        if (runs.isEmpty()) {
-            Text(text = "No runs yet - completed runs from the Timer tab will show up here")
-            return
-        }
+    ScreenScaffold(title = "History", modifier = modifier) {
+        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            if (runs.isEmpty()) {
+                Text(text = "No runs yet - completed runs from the Timer tab will show up here")
+            } else {
+                Text(text = "Drill", style = MaterialTheme.typography.labelMedium)
+                CategoryFilterRow(categories = categories, selected = selectedCategory, onSelect = { selectedCategory = it })
+                Spacer(Modifier.height(8.dp))
+                Text(text = "Shooter", style = MaterialTheme.typography.labelMedium)
+                CategoryFilterRow(categories = shooters, selected = selectedShooter, onSelect = { selectedShooter = it })
+                Spacer(Modifier.height(8.dp))
 
-        Text(text = "Drill", style = MaterialTheme.typography.labelMedium)
-        CategoryFilterRow(categories = categories, selected = selectedCategory, onSelect = { selectedCategory = it })
-        Spacer(Modifier.height(8.dp))
-        Text(text = "Shooter", style = MaterialTheme.typography.labelMedium)
-        CategoryFilterRow(categories = shooters, selected = selectedShooter, onSelect = { selectedShooter = it })
-        Spacer(Modifier.height(8.dp))
-
-        LazyColumn {
-            items(filteredRuns, key = { it.id }) { run ->
-                RunRow(run = run, onClick = { onSelect(run) })
-                HorizontalDivider()
+                LazyColumn {
+                    items(filteredRuns, key = { it.id }) { run ->
+                        RunRow(run = run, onClick = { onSelect(run) })
+                        HorizontalDivider()
+                    }
+                }
             }
         }
     }
@@ -161,32 +168,39 @@ private fun RunDetail(
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-    ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = onBack) { Text("< Back") }
-            TextButton(onClick = { showDeleteConfirm = true }) {
-                Text("Delete run", color = MaterialTheme.colorScheme.error)
+    ScreenScaffold(
+        title = formatTimestamp(run.timestampEpochMillis),
+        modifier = modifier,
+        onBack = onBack,
+        actions = {
+            IconButton(onClick = { showDeleteConfirm = true }) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Delete run",
+                    tint = MaterialTheme.colorScheme.error
+                )
             }
         }
-        Spacer(Modifier.height(8.dp))
-        if (run.drillName != null) {
-            Text(text = run.drillName, style = MaterialTheme.typography.titleSmall)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+        ) {
+            if (run.drillName != null) {
+                Text(text = run.drillName, style = MaterialTheme.typography.titleSmall)
+            }
+            if (run.shooterName != null) {
+                Text(text = run.shooterName, style = MaterialTheme.typography.titleSmall)
+            }
+            Spacer(Modifier.height(16.dp))
+            RunSummaryView(
+                totalElapsedMillis = run.totalElapsedMillis,
+                shotTimestampsMillis = run.shotTimestampsMillis,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
-        if (run.shooterName != null) {
-            Text(text = run.shooterName, style = MaterialTheme.typography.titleSmall)
-        }
-        Text(text = formatTimestamp(run.timestampEpochMillis), style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(16.dp))
-        RunSummaryView(
-            totalElapsedMillis = run.totalElapsedMillis,
-            shotTimestampsMillis = run.shotTimestampsMillis,
-            modifier = Modifier.fillMaxWidth()
-        )
     }
 
     if (showDeleteConfirm) {
