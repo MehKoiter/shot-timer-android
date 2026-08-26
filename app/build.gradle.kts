@@ -17,8 +17,8 @@ android {
         applicationId = "com.shottimer.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.2.4"
+        versionCode = 7
+        versionName = "0.2.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -29,10 +29,9 @@ android {
             // developer's own local debug installs only in intent - same variant, since the
             // full App Distribution SDK (shake-to-report) below is already gated to debug-only.
             firebaseAppDistribution {
-                releaseNotes = "UI overhaul: cleaner Timer screen (big Start button, options " +
-                    "moved to a sheet), working back gesture, screen stays on during runs, " +
-                    "no more white flash at launch. New: first-launch Google backup prompt. " +
-                    "Fresh installs will see the sign-in dialog - tell us if it reads clearly."
+                releaseNotes = "Tap a shooter on the Shooters tab to jump straight to their " +
+                    "run history. Random delay in Settings is now a two-thumb slider instead " +
+                    "of typing numbers. Includes everything from 0.2.4 if you skipped it."
                 testers = "lymberkyle@gmail.com,jess54191@gmail.com"
             }
         }
