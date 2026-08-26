@@ -19,4 +19,10 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
     fun deleteRun(run: RunEntity) {
         viewModelScope.launch { repository.deleteRun(run) }
     }
+
+    /** Undo for [deleteRun]: re-inserting the same entity (original id, remoteId and all)
+     * restores the row exactly, so cloud sync doesn't see it as a brand-new run. */
+    fun restoreRun(run: RunEntity) {
+        viewModelScope.launch { repository.saveRun(run) }
+    }
 }

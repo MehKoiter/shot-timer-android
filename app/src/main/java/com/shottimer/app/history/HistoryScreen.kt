@@ -2,6 +2,7 @@ package com.shottimer.app.history
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,7 +16,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -23,14 +23,19 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -42,6 +47,7 @@ import com.shottimer.app.util.formatElapsed
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.launch
 
 private val TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("MMM d, h:mm a")
 private const val PRACTICE_CATEGORY = "Practice"
@@ -61,21 +67,46 @@ fun HistoryScreen(
     // resolves against fresh data if the run list changes underneath us - a deleted run's id
     // simply stops resolving and we fall back to the list).
     var selectedRunId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
-    val current = selectedRunId?.let { id -> runs.find { it.id == id } }
-    if (current != null) {
-        RunDetail(
-            run = current,
-            onBack = { selectedRunId = null },
-            onDelete = viewModel::deleteRun,
-            modifier = modifier
-        )
-    } else {
-        RunList(
-            runs = runs,
-            onSelect = { selectedRunId = it.id },
-            modifier = modifier,
-            initialShooterFilter = initialShooterFilter
+    // Delete immediately and offer Undo via snackbar instead of a confirm dialog - one tap for
+    // the common case, and a mistake is recoverable for the few seconds the snackbar shows.
+    val deleteWithUndo: (RunEntity) -> Unit = { run ->
+        viewModel.deleteRun(run)
+        selectedRunId = null
+        scope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = "Run deleted",
+                actionLabel = "Undo",
+                duration = SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.restoreRun(run)
+            }
+        }
+    }
+
+    Box(modifier = modifier) {
+        val current = selectedRunId?.let { id -> runs.find { it.id == id } }
+        if (current != null) {
+            RunDetail(
+                run = current,
+                onBack = { selectedRunId = null },
+                onDelete = deleteWithUndo,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            RunList(
+                runs = runs,
+                onSelect = { selectedRunId = it.id },
+                modifier = Modifier.fillMaxSize(),
+                initialShooterFilter = initialShooterFilter
+            )
+        }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
         )
     }
 }
@@ -179,14 +210,13 @@ private fun RunDetail(
     onDelete: (RunEntity) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var showDeleteConfirm by remember { mutableStateOf(false) }
-
     ScreenScaffold(
         title = formatTimestamp(run.timestampEpochMillis),
         modifier = modifier,
         onBack = onBack,
         actions = {
-            IconButton(onClick = { showDeleteConfirm = true }) {
+            // No confirm dialog: delete is immediate, and the caller shows an Undo snackbar.
+            IconButton(onClick = { onDelete(run) }) {
                 Icon(
                     Icons.Default.Delete,
                     contentDescription = "Delete run",
@@ -214,23 +244,5 @@ private fun RunDetail(
                 modifier = Modifier.fillMaxWidth()
             )
         }
-    }
-
-    if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete this run?") },
-            text = { Text("This can't be undone.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDeleteConfirm = false
-                    onDelete(run)
-                    onBack()
-                }) { Text("Delete") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
-            }
-        )
     }
 }
