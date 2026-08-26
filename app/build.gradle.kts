@@ -32,7 +32,7 @@ android {
                 releaseNotes = "Tap a shooter on the Shooters tab to jump straight to their " +
                     "run history. Random delay in Settings is now a two-thumb slider instead " +
                     "of typing numbers. Includes everything from 0.2.4 if you skipped it."
-                testers = "lymberkyle@gmail.com,jess54191@gmail.com"
+                testers = "lymberkyle@gmail.com,jess54191@gmail.com,georgepace8@gmail.com"
             }
         }
         release {
