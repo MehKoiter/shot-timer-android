@@ -21,4 +21,8 @@ class RunRepository(context: Context) {
     suspend fun getSyncedRemoteIds(): List<String> = dao.getSyncedRemoteIds()
 
     suspend fun markSynced(id: Long, remoteId: String) = dao.markSynced(id, remoteId)
+
+    suspend fun renameShooter(oldName: String, newName: String) = dao.renameShooter(oldName, newName)
+
+    suspend fun untagShooter(name: String) = dao.untagShooter(name)
 }

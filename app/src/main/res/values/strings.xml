@@ -60,6 +60,16 @@
     <string name="par_short">Par %1$.1fs</string>
     <string name="delete_run">Delete run</string>
     <string name="run_deleted">Run deleted</string>
+    <string name="share_run">Share run</string>
+    <string name="export_csv">Export CSV</string>
+    <string name="share_shooter">Shooter: %1$s</string>
+    <string name="share_par">Par: %1$.1fs</string>
+    <string name="share_first_shot">First shot: %1$s</string>
+    <plurals name="share_total">
+        <item quantity="one">Total: %1$s (%2$d shot)</item>
+        <item quantity="other">Total: %1$s (%2$d shots)</item>
+    </plurals>
+    <string name="share_splits">Splits: %1$s</string>
 
     <!-- Shooters -->
     <string name="shooters_desc">Stats for everyone you\'ve tagged as the shooter on a run - set a name on the Timer tab before starting to track someone. Tap a shooter to see their runs.</string>
@@ -67,11 +77,23 @@
     <string name="stat_runs">Runs</string>
     <string name="stat_best">Best</string>
     <string name="stat_average">Average</string>
+    <string name="edit_shooter">Edit shooter</string>
+    <string name="edit_shooter_note">Renaming to an existing shooter\'s name merges them. Removing keeps the runs as unassigned practice.</string>
+    <string name="save">Save</string>
+    <string name="remove_shooter">Remove shooter</string>
+    <string name="trend_desc">Total time trend across the last %1$d runs</string>
 
     <!-- Drills -->
     <string name="drills_desc">Classic timed drills. Starting one loads the Timer screen with its round count so you can see your progress live - hit verification (zone, head shot, etc.) is on you and the target, the app only times and counts shots.</string>
     <string name="drill_rounds">%1$d rounds</string>
     <string name="start_this_drill">Start this drill</string>
+    <string name="add_drill">Add drill</string>
+    <string name="custom_drill_label">Custom drill</string>
+    <string name="drill_name_label">Drill name</string>
+    <string name="rounds_label">Rounds</string>
+    <string name="instructions_optional">Instructions (optional)</string>
+    <string name="add">Add</string>
+    <string name="delete_drill">Delete drill</string>
 
     <!-- Settings -->
     <string name="settings_desc">These are defaults for new runs - changes don\'t affect a run already in progress.</string>

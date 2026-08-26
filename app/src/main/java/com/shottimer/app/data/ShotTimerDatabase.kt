@@ -26,10 +26,23 @@ internal val MIGRATION_3_4 = object : Migration(3, 4) {
     }
 }
 
-@Database(entities = [RunEntity::class], version = 4, exportSchema = true)
+internal val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS custom_drills (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "name TEXT NOT NULL, " +
+                "instructions TEXT NOT NULL, " +
+                "roundCount INTEGER NOT NULL)"
+        )
+    }
+}
+
+@Database(entities = [RunEntity::class, CustomDrillEntity::class], version = 5, exportSchema = true)
 @TypeConverters(Converters::class)
 abstract class ShotTimerDatabase : RoomDatabase() {
     abstract fun runDao(): RunDao
+    abstract fun customDrillDao(): CustomDrillDao
 
     companion object {
         @Volatile
@@ -41,7 +54,8 @@ abstract class ShotTimerDatabase : RoomDatabase() {
                     context.applicationContext,
                     ShotTimerDatabase::class.java,
                     "shot_timer.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .build().also { instance = it }
             }
     }
 }

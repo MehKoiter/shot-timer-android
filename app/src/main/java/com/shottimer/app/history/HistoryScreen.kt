@@ -16,6 +16,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -37,6 +39,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -45,7 +48,9 @@ import com.shottimer.app.R
 import com.shottimer.app.data.RunEntity
 import com.shottimer.app.results.RunSummaryView
 import com.shottimer.app.ui.ScreenScaffold
+import com.shottimer.app.util.exportRunsAsCsv
 import com.shottimer.app.util.formatElapsed
+import com.shottimer.app.util.shareRunAsText
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -152,7 +157,18 @@ private fun RunList(
         }
     }
 
-    ScreenScaffold(title = stringResource(R.string.tab_history), modifier = modifier) {
+    val context = LocalContext.current
+    ScreenScaffold(
+        title = stringResource(R.string.tab_history),
+        modifier = modifier,
+        actions = {
+            if (runs.isNotEmpty()) {
+                IconButton(onClick = { exportRunsAsCsv(context, runs) }) {
+                    Icon(Icons.Default.FileDownload, contentDescription = stringResource(R.string.export_csv))
+                }
+            }
+        }
+    ) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             if (runs.isEmpty()) {
                 Text(text = stringResource(R.string.no_runs_yet))
@@ -231,6 +247,10 @@ private fun RunDetail(
         modifier = modifier,
         onBack = onBack,
         actions = {
+            val context = LocalContext.current
+            IconButton(onClick = { shareRunAsText(context, run) }) {
+                Icon(Icons.Default.Share, contentDescription = stringResource(R.string.share_run))
+            }
             // No confirm dialog: delete is immediate, and the caller shows an Undo snackbar.
             IconButton(onClick = { onDelete(run) }) {
                 Icon(

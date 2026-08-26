@@ -47,4 +47,15 @@ interface RunDao {
      * saved, and this is the only field sync is ever allowed to change after the fact. */
     @Query("UPDATE runs SET remoteId = :remoteId WHERE id = :id")
     suspend fun markSynced(id: Long, remoteId: String)
+
+    /** Rename a shooter across every run tagged with them. Renaming onto an existing name is the
+     * merge operation - both shooters' runs end up under one name, which is exactly the fix for
+     * a typo'd duplicate. Note: already-synced cloud copies keep the old name (sync is
+     * upload-once and never updates remote docs). */
+    @Query("UPDATE runs SET shooterName = :newName WHERE shooterName = :oldName")
+    suspend fun renameShooter(oldName: String, newName: String)
+
+    /** Remove a shooter by untagging their runs - the runs themselves are kept as practice runs. */
+    @Query("UPDATE runs SET shooterName = NULL WHERE shooterName = :name")
+    suspend fun untagShooter(name: String)
 }

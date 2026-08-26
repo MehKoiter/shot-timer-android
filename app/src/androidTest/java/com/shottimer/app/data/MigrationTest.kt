@@ -53,4 +53,32 @@ class MigrationTest {
             )
         }
     }
+
+    @Test
+    fun migrate4To5_preservesRunsAndCreatesUsableCustomDrillsTable() {
+        helper.createDatabase(TEST_DB, 4).apply {
+            execSQL(
+                "INSERT INTO runs " +
+                    "(id, timestampEpochMillis, totalElapsedMillis, shotTimestampsMillis, parTimeSeconds, drillName, shooterName, remoteId) " +
+                    "VALUES (1, 1000, 5000, '100,200,300', NULL, 'Bill Drill', 'Mike', 'abc123')"
+            )
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(TEST_DB, 5, true, MIGRATION_4_5)
+
+        migrated.query("SELECT * FROM runs WHERE id = 1").use {
+            assertTrue("expected the pre-migration run to still be present", it.moveToFirst())
+            assertEquals("abc123", it.getString(it.getColumnIndexOrThrow("remoteId")))
+        }
+        // The new table must actually accept inserts with the schema Room validated above.
+        migrated.execSQL(
+            "INSERT INTO custom_drills (name, instructions, roundCount) VALUES ('My Drill', 'Do it', 5)"
+        )
+        migrated.query("SELECT * FROM custom_drills").use {
+            assertTrue("expected the inserted custom drill", it.moveToFirst())
+            assertEquals("My Drill", it.getString(it.getColumnIndexOrThrow("name")))
+            assertEquals(5, it.getInt(it.getColumnIndexOrThrow("roundCount")))
+        }
+    }
 }
