@@ -17,8 +17,8 @@ android {
         applicationId = "com.shottimer.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.2.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -30,7 +30,7 @@ android {
             // full App Distribution SDK (shake-to-report) below is already gated to debug-only.
             firebaseAppDistribution {
                 releaseNotes = "Test build for feedback."
-                testers = "lymberkyle@gmail.com"
+                testers = "lymberkyle@gmail.com,jess54191@gmail.com"
             }
         }
         release {
