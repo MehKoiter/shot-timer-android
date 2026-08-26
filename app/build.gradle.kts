@@ -33,7 +33,7 @@ android {
                     "is now a tap-to-expand list), edit/rename/remove shooters from their " +
                     "cards, share a run or export everything as CSV from History, and each " +
                     "shooter now shows a trend line of their recent runs."
-                testers = "lymberkyle@gmail.com,jess54191@gmail.com,georgepace8@gmail.com"
+                testers = "lymberkyle@gmail.com,jess54191@gmail.com,georgepace8@gmail.com,jrugjr@gmail.com"
             }
         }
         release {
