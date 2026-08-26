@@ -100,7 +100,7 @@
     <string name="default_sensitivity_pct">Default sensitivity: %1$d%%</string>
     <string name="sensitivity_help_cd">How does sensitivity work?</string>
     <string name="sensitivity_help_body">Higher sensitivity picks up quieter sounds - turn it up if shots aren\'t being detected. Lower sensitivity needs a louder sound to trigger - turn it down if background noise or handling the gun/phone is causing false detections.</string>
-    <string name="echo_lockout_title">Echo lockout</string>
+    <string name="echo_lockout_title">Echo lockout: %1$d ms</string>
     <string name="echo_lockout_desc">How long after a detected shot to ignore further sound - filters out echoes/reverb without missing a genuinely fast next shot. %1$d-%2$d ms.</string>
     <string name="lockout_ms_label">Lockout (ms)</string>
     <string name="random_delay_title">Random delay: %1$.1f-%2$.1fs</string>

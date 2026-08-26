@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
@@ -19,7 +17,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -32,10 +29,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -117,15 +111,18 @@ fun SettingsScreen(
             )
         }
 
-        SettingSection(title = stringResource(R.string.echo_lockout_title)) {
+        SettingSection(title = stringResource(R.string.echo_lockout_title, settings.echoLockoutMs)) {
             Text(
                 text = stringResource(R.string.echo_lockout_desc, MIN_ECHO_LOCKOUT_MS, MAX_ECHO_LOCKOUT_MS),
                 style = MaterialTheme.typography.bodySmall
             )
-            IntegerField(
-                label = stringResource(R.string.lockout_ms_label),
-                value = settings.echoLockoutMs,
-                onValueChange = viewModel::setEchoLockoutMs
+            // A slider beats a numeric keyboard here, same reasoning as the random delay
+            // RangeSlider - this was the last free-text numeric input in Settings.
+            Slider(
+                value = settings.echoLockoutMs.toFloat(),
+                onValueChange = { viewModel.setEchoLockoutMs(it.toLong()) },
+                valueRange = MIN_ECHO_LOCKOUT_MS.toFloat()..MAX_ECHO_LOCKOUT_MS.toFloat(),
+                modifier = Modifier.fillMaxWidth()
             )
         }
 
@@ -199,28 +196,6 @@ fun SettingsScreen(
         }
     }
     }
-}
-
-/** Local text mirrors [value] until the field loses focus, so clamping doesn't fight the user mid-keystroke. */
-@Composable
-private fun IntegerField(
-    label: String,
-    value: Long,
-    onValueChange: (Long) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var text by remember(value) { mutableStateOf(value.toString()) }
-    OutlinedTextField(
-        value = text,
-        onValueChange = { text = it },
-        label = { Text(label) },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { text.toLongOrNull()?.let(onValueChange) }),
-        modifier = modifier.onFocusChanged { focus ->
-            if (!focus.isFocused) text.toLongOrNull()?.let(onValueChange)
-        }
-    )
 }
 
 @Composable
