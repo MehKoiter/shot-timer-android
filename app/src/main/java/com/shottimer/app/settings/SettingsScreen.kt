@@ -194,6 +194,16 @@ fun SettingsScreen(
                 )
             }
         }
+
+        // Not clickable - just lets a tester tell you exactly which build they're on when
+        // reporting an issue, without digging through Android's own app-info page.
+        SettingSection(title = stringResource(R.string.app_info_title)) {
+            Text(
+                text = stringResource(R.string.version_label, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE),
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        Spacer(Modifier.height(16.dp))
     }
     }
 }
