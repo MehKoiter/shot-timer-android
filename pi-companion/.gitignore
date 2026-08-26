@@ -1,0 +1,10 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+venv/
+.venv/
+*.egg-info/
+
+# Local run database (created at runtime - see storage.DEFAULT_DB_PATH)
+*.db

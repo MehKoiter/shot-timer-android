@@ -1,0 +1,17 @@
+# Runtime dependencies for the Pi itself (main.py and everything it imports).
+#
+# Verified against real hardware (Pi 3 Model B, Raspberry Pi OS Lite 64-bit, Debian 13
+# "trixie") on 2026-08-07 - see README.md's "System packages" section for the apt-level
+# packages that had to be installed alongside these for pip install to actually succeed
+# (bluezero/gpiozero pull in native-code dependencies that don't have prebuilt ARM wheels).
+#
+# Running the pure-logic test suite (tests/) does NOT require this whole list - see
+# README.md's "Running the tests" section for the much shorter list that actually needs.
+
+numpy
+sounddevice
+bluezero
+gpiozero
+lgpio       # gpiozero's hardware pin backend - without this it falls back to a software
+            # implementation that doesn't work on this kernel's GPIO interface (see README)
+dbus-python  # bluezero imports `dbus` directly but doesn't declare it as a pip dependency

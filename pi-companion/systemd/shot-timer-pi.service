@@ -1,0 +1,29 @@
+[Unit]
+Description=Shot Timer Pi companion (start beep, shot detection, BLE service)
+After=bluetooth.target sound.target
+Wants=bluetooth.target
+
+[Service]
+Type=simple
+
+# Change these to match whatever username you set in Raspberry Pi Imager's advanced options
+# (see README.md) - "pi" is only the historical Raspberry Pi OS default, and current Imager
+# versions ask you to pick your own username during flashing.
+User=pi
+Group=pi
+
+# Change this to wherever you actually cloned/copied the repo on the Pi.
+WorkingDirectory=/home/pi/shot-timer-android/pi-companion
+
+# Run as a module (not `python3 shot_timer_pi/main.py`) so the package's relative imports
+# (`from . import ...`) resolve - see README.md's "Running it manually" section, which uses
+# the same form.
+ExecStart=/usr/bin/python3 -m shot_timer_pi.main
+
+Environment=PYTHONUNBUFFERED=1
+
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
