@@ -20,6 +20,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -129,23 +130,19 @@ fun SettingsScreen(
             )
         }
 
-        SettingSection(title = "Random delay") {
+        SettingSection(
+            title = "Random delay: %.1f-%.1fs".format(settings.minDelaySeconds, settings.maxDelaySeconds)
+        ) {
             Text(
-                text = "Range for the random pause between pressing Start and the beep. " +
-                    "$MIN_RANDOM_DELAY_SECONDS-$MAX_RANDOM_DELAY_SECONDS seconds.",
+                text = "Range for the random pause between pressing Start and the beep.",
                 style = MaterialTheme.typography.bodySmall
             )
-            FloatField(
-                label = "Min (s)",
-                value = settings.minDelaySeconds,
-                onValueChange = { viewModel.setDelayRange(it, settings.maxDelaySeconds) },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(8.dp))
-            FloatField(
-                label = "Max (s)",
-                value = settings.maxDelaySeconds,
-                onValueChange = { viewModel.setDelayRange(settings.minDelaySeconds, it) },
+            // One two-thumb slider instead of the old Min/Max decimal text fields - expresses
+            // the range in a single gesture and makes min > max impossible by construction.
+            RangeSlider(
+                value = settings.minDelaySeconds..settings.maxDelaySeconds,
+                onValueChange = { range -> viewModel.setDelayRange(range.start, range.endInclusive) },
+                valueRange = MIN_RANDOM_DELAY_SECONDS..MAX_RANDOM_DELAY_SECONDS,
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -220,27 +217,6 @@ private fun IntegerField(
         keyboardActions = KeyboardActions(onDone = { text.toLongOrNull()?.let(onValueChange) }),
         modifier = modifier.onFocusChanged { focus ->
             if (!focus.isFocused) text.toLongOrNull()?.let(onValueChange)
-        }
-    )
-}
-
-@Composable
-private fun FloatField(
-    label: String,
-    value: Float,
-    onValueChange: (Float) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var text by remember(value) { mutableStateOf("%.1f".format(value)) }
-    OutlinedTextField(
-        value = text,
-        onValueChange = { text = it },
-        label = { Text(label) },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { text.toFloatOrNull()?.let(onValueChange) }),
-        modifier = modifier.onFocusChanged { focus ->
-            if (!focus.isFocused) text.toFloatOrNull()?.let(onValueChange)
         }
     )
 }
