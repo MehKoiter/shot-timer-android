@@ -17,8 +17,8 @@ android {
         applicationId = "com.shottimer.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.2.3"
+        versionCode = 6
+        versionName = "0.2.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -29,9 +29,10 @@ android {
             // developer's own local debug installs only in intent - same variant, since the
             // full App Distribution SDK (shake-to-report) below is already gated to debug-only.
             firebaseAppDistribution {
-                releaseNotes = "Shot detection fixes: the mic now arms before the start beep " +
-                    "(fast first shots register), and a race that could silently drop " +
-                    "detected shots is fixed. Please retest draw-time accuracy."
+                releaseNotes = "UI overhaul: cleaner Timer screen (big Start button, options " +
+                    "moved to a sheet), working back gesture, screen stays on during runs, " +
+                    "no more white flash at launch. New: first-launch Google backup prompt. " +
+                    "Fresh installs will see the sign-in dialog - tell us if it reads clearly."
                 testers = "lymberkyle@gmail.com,jess54191@gmail.com"
             }
         }
